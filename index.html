@@ -273,29 +273,17 @@
   'use strict';
 
   // =========================================================================
-  // 1. Firebase 設定（部署到 GitHub Pages 前請替換為你的專案設定）
+  // 1. Firebase 設定（已填入 for-kiki 專案設定）
   // =========================================================================
-  // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyA-MFtQOYzJNxCx9I98ERcwRgoOFO1Zpr4",
-  authDomain: "for-kiki.firebaseapp.com",
-  projectId: "for-kiki",
-  storageBucket: "for-kiki.firebasestorage.app",
-  messagingSenderId: "1079956903157",
-  appId: "1:1079956903157:web:fb10e1ffac2d15ccf0e1bc",
-  measurementId: "G-N8K6PWLYKS"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+  const FIREBASE_CONFIG = {
+    apiKey: 'AIzaSyA-MFtQOYzJNxCx9I98ERcwRgoOFO1Zpr4',
+    authDomain: 'for-kiki.firebaseapp.com',
+    projectId: 'for-kiki',
+    storageBucket: 'for-kiki.firebasestorage.app',
+    messagingSenderId: '1079956903157',
+    appId: '1:1079956903157:web:fb10e1ffac2d15ccf0e1bc',
+    measurementId: 'G-N8K6PWLYKS'
+  };
 
   // 授權帳號白名單（需搭配 firestore.rules 伺服器端驗證）
   const ALLOWED_EMAILS = [
@@ -484,7 +472,12 @@ const analytics = getAnalytics(app);
       showProtectedHtml(String(snap.data()[VAULT_HTML_FIELD]));
     } catch (err) {
       await auth.signOut();
-      resetToGate('權限驗證失敗，無法讀取受保護內容。');
+      const code = err && err.code ? err.code : '';
+      if (code === 'permission-denied') {
+        resetToGate('Firestore 權限規則拒絕讀取，請確認已發布最新的 firestore.rules。');
+      } else {
+        resetToGate(`讀取失敗（${code || 'unknown'}），請確認 Firestore 資料庫已建立。`);
+      }
     }
   }
 
@@ -498,8 +491,12 @@ const analytics = getAnalytics(app);
   }
 
   googleSignInBtn.addEventListener('click', async () => {
+    if (window.location.protocol === 'file:') {
+      setStatus('請透過 GitHub Pages（https://）開啟網頁，本機 file:// 無法執行 Google 驗證。', 'error');
+      return;
+    }
     if (!isConfigured || !auth || !db || !googleProvider) {
-      setStatus('尚未填入 Firebase 設定（請先於原始碼中更新 FIREBASE_CONFIG）。', 'error');
+      setStatus('Firebase SDK 載入失敗，請檢查網路連線或重新整理。', 'error');
       return;
     }
 
@@ -513,6 +510,7 @@ const analytics = getAnalytics(app);
       const code = err && err.code ? err.code : '';
       if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
         try {
+          setStatus('正在跳轉至 Google 驗證頁面...', '');
           await auth.signInWithRedirect(googleProvider);
           return;
         } catch (_) {}
@@ -520,8 +518,12 @@ const analytics = getAnalytics(app);
       setBusy(false);
       if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
         setStatus('已取消登入。', '');
+      } else if (code === 'auth/unauthorized-domain') {
+        setStatus(`尚未授權此網域（${window.location.hostname}），請到 Firebase Authentication → Settings → Authorized domains 新增。`, 'error');
+      } else if (code === 'auth/operation-not-allowed') {
+        setStatus('Firebase 尚未啟用 Google 登入，請到 Authentication → Sign-in method 開啟 Google。', 'error');
       } else {
-        setStatus('Google 驗證失敗，請確認 Firebase 已啟用 Google 登入並加入網域。', 'error');
+        setStatus(`Google 驗證失敗（${code || 'unknown'}），請確認 Firebase 設定。`, 'error');
       }
     }
   });
