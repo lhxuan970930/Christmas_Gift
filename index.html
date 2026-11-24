@@ -275,27 +275,25 @@
   // =========================================================================
   // 1. Firebase 設定（部署到 GitHub Pages 前請替換為你的專案設定）
   // =========================================================================
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+  const FIREBASE_CONFIG = {
+    apiKey: 'YOUR_FIREBASE_API_KEY',
+    authDomain: 'YOUR_PROJECT_ID.firebaseapp.com',
+    projectId: 'YOUR_PROJECT_ID',
+    storageBucket: 'YOUR_PROJECT_ID.firebasestorage.app',
+    messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
+    appId: 'YOUR_APP_ID'
+  };
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyA-MFtQOYzJNxCx9I98ERcwRgoOFO1Zpr4",
-  authDomain: "for-kiki.firebaseapp.com",
-  projectId: "for-kiki",
-  storageBucket: "for-kiki.firebasestorage.app",
-  messagingSenderId: "1079956903157",
-  appId: "1:1079956903157:web:fb10e1ffac2d15ccf0e1bc",
-  measurementId: "G-N8K6PWLYKS"
-};
+  // 授權帳號白名單（需搭配 firestore.rules 伺服器端驗證）
+  const ALLOWED_EMAILS = [
+    'linkiki971101@gmail.com',
+    'lhxuan970930@gmail.com'
+  ];
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+  // Firestore 儲存受保護 HTML 原始碼的位置
+  const VAULT_COLLECTION = 'private_pages';
+  const VAULT_DOC_ID = 'main';
+  const VAULT_HTML_FIELD = 'html';
 
   // =========================================================================
   // 2. 極簡單色 ASCII 點陣背景（無任何節日或內容提示）
@@ -453,7 +451,8 @@ const analytics = getAnalytics(app);
       return;
     }
 
-    if (user.email.trim().toLowerCase() !== ALLOWED_EMAIL.trim().toLowerCase()) {
+    const emailLower = user.email.trim().toLowerCase();
+    if (!ALLOWED_EMAILS.some((e) => e.trim().toLowerCase() === emailLower)) {
       await auth.signOut();
       resetToGate('此 Google 帳號無權存取此頁面，請切換為授權帳號。');
       return;
