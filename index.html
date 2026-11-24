@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>PRIVATE ACCESS</title>
+<style>
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  :root {
+    --bg: #02060a;
+    --panel: rgba(5, 11, 19, 0.86);
+    --border: rgba(96, 104, 122, 0.36);
+    --dim: rgb(96, 104, 122);
+    --sign: rgb(176, 168, 196);
+    --accent: rgb(255, 196, 90);
+    --text: rgb(224, 232, 244);
+    --err: rgb(245, 108, 108);
+    --ok: rgb(120, 214, 152);
+    --mono: Consolas, Menlo, "DejaVu Sans Mono", "Courier New", "Noto Sans TC", monospace;
+  }
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #bgCanvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    z-index: 0;
+  }
+
+  .hud-top-right {
+    position: fixed;
+    top: 14px;
+    right: 16px;
+    z-index: 2;
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 0.03em;
+    pointer-events: none;
+  }
+  .hud-bottom-left {
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
+    z-index: 2;
+    font-size: 12px;
+    line-height: 1.65;
+    pointer-events: none;
+  }
+  .hud-sign {
+    color: var(--sign);
+  }
+  .hud-dim {
+    color: var(--dim);
+  }
+
+  #gate {
+    position: fixed;
+    inset: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    transition: opacity 0.45s ease;
+  }
+  #gate.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .card {
+    position: relative;
+    width: 100%;
+    max-width: 390px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 32px 26px 28px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.65);
+  }
+  .card::before, .card::after {
+    content: "";
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-color: var(--accent);
+    border-style: solid;
+    opacity: 0.75;
+    pointer-events: none;
+  }
+  .card::before {
+    top: -1px;
+    left: -1px;
+    border-width: 1px 0 0 1px;
+  }
+  .card::after {
+    bottom: -1px;
+    right: -1px;
+    border-width: 0 1px 1px 0;
+  }
+
+  .kicker {
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+  }
+  .subtitle {
+    font-size: 12px;
+    color: var(--dim);
+    margin-bottom: 26px;
+    line-height: 1.6;
+  }
+
+  .google-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 13px 16px;
+    background: rgba(255, 196, 90, 0.08);
+    border: 1px solid rgba(255, 196, 90, 0.65);
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: background 0.2s, border-color 0.2s, transform 0.1s;
+  }
+  .google-btn:hover:not(:disabled) {
+    background: rgba(255, 196, 90, 0.18);
+    border-color: var(--accent);
+  }
+  .google-btn:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  .google-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .google-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+
+  .hint-line {
+    margin-top: 14px;
+    font-size: 11px;
+    color: rgba(96, 104, 122, 0.85);
+    line-height: 1.5;
+  }
+
+  .status {
+    min-height: 20px;
+    margin-top: 14px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--dim);
+    word-break: break-word;
+  }
+  .status.error {
+    color: var(--err);
+  }
+  .status.ok {
+    color: var(--ok);
+  }
+
+  #vaultFrame {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: var(--bg);
+    z-index: 10;
+    display: none;
+  }
+  #vaultFrame.active {
+    display: block;
+  }
+  #signOutBtn {
+    position: fixed;
+    bottom: 14px;
+    right: 16px;
+    z-index: 20;
+    display: none;
+    background: rgba(2, 6, 10, 0.65);
+    border: 1px solid rgba(96, 104, 122, 0.45);
+    color: var(--dim);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 9px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  #signOutBtn.active {
+    display: block;
+  }
+  #signOutBtn:hover {
+    color: var(--accent);
+    border-color: rgba(255, 196, 90, 0.65);
+  }
+</style>
+</head>
+<body>
+<canvas id="bgCanvas" aria-hidden="true"></canvas>
+
+<div class="hud-top-right" id="hudStatus">• status = locked</div>
+<div class="hud-bottom-left" id="hudMeta">
+  <div class="hud-sign">PRIVATE GATEWAY</div>
+  <div class="hud-dim">auth google &nbsp;&nbsp; access restricted</div>
+</div>
+
+<main id="gate">
+  <section class="card" aria-labelledby="gateTitle">
+    <div class="kicker">• restricted node</div>
+    <h1 class="title" id="gateTitle">ACCESS REQUIRED</h1>
+    <p class="subtitle">請使用授權的 Google 帳號進行第三方驗證以繼續。</p>
+
+    <button type="button" class="google-btn" id="googleSignInBtn">
+      <svg class="google-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path fill="currentColor" d="M21.8 12.23c0-.71-.06-1.4-.18-2.06H12v3.9h5.5a4.7 4.7 0 0 1-2.04 3.08v2.56h3.3c1.93-1.78 3.04-4.4 3.04-7.48z"/>
+        <path fill="currentColor" d="M12 22c2.75 0 5.06-.91 6.75-2.47l-3.3-2.56c-.91.61-2.08.98-3.45.98-2.66 0-4.91-1.8-5.72-4.21H2.87v2.64A10.2 10.2 0 0 0 12 22z"/>
+        <path fill="currentColor" d="M6.28 13.74a6.12 6.12 0 0 1 0-3.48V7.62H2.87a10.2 10.2 0 0 0 0 8.76l3.41-2.64z"/>
+        <path fill="currentColor" d="M12 6.05c1.5 0 2.84.51 3.9 1.52l2.92-2.92C17.05 2.99 14.75 2 12 2a10.2 10.2 0 0 0-9.13 5.62l3.41 2.64C7.09 7.85 9.34 6.05 12 6.05z"/>
+      </svg>
+      <span id="btnLabel">CONTINUE WITH GOOGLE</span>
+    </button>
+
+    <p class="hint-line">直接以原本的 Google 帳號密碼登入，無需另外註冊。</p>
+    <div class="status" id="statusMsg" role="status" aria-live="polite"></div>
+  </section>
+</main>
+
+<iframe id="vaultFrame" title="Protected Content" allow="autoplay"></iframe>
+<button type="button" id="signOutBtn">SIGN OUT</button>
+
+<!-- Firebase Compat SDK (pinned version for GitHub Pages static hosting) -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
+<script>
+(() => {
+  'use strict';
+
+  // =========================================================================
+  // 1. Firebase 設定（部署到 GitHub Pages 前請替換為你的專案設定）
+  // =========================================================================
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyA-MFtQOYzJNxCx9I98ERcwRgoOFO1Zpr4",
+  authDomain: "for-kiki.firebaseapp.com",
+  projectId: "for-kiki",
+  storageBucket: "for-kiki.firebasestorage.app",
+  messagingSenderId: "1079956903157",
+  appId: "1:1079956903157:web:fb10e1ffac2d15ccf0e1bc",
+  measurementId: "G-N8K6PWLYKS"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+
+  // =========================================================================
+  // 2. 極簡單色 ASCII 點陣背景（無任何節日或內容提示）
+  // =========================================================================
+  const bgCanvas = document.getElementById('bgCanvas');
+  const bgCtx = bgCanvas.getContext('2d', { alpha: false });
+  let bgW = 0, bgH = 0, bgCols = 0, bgRows = 0;
+  let bgNodes = [];
+  let bgRunning = true;
+
+  function initBg() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    bgW = window.innerWidth;
+    bgH = window.innerHeight;
+    bgCanvas.width = Math.floor(bgW * dpr);
+    bgCanvas.height = Math.floor(bgH * dpr);
+    bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    bgCols = Math.ceil(bgW / 18);
+    bgRows = Math.ceil(bgH / 22);
+    bgNodes = [];
+    const glyphs = ['.', '.', '.', ':', '+', '·'];
+    for (let i = 0; i < 140; i++) {
+      bgNodes.push({
+        x: Math.random() * bgW,
+        y: Math.random() * bgH,
+        vy: 6 + Math.random() * 14,
+        phase: Math.random() * Math.PI * 2,
+        ch: glyphs[Math.floor(Math.random() * glyphs.length)],
+        alpha: 0.14 + Math.random() * 0.28
+      });
+    }
+  }
+
+  let bgLast = performance.now();
+  function drawBg(now) {
+    if (!bgRunning) return;
+    requestAnimationFrame(drawBg);
+    const dt = Math.min((now - bgLast) / 1000, 0.1);
+    bgLast = now;
+
+    bgCtx.fillStyle = '#02060a';
+    bgCtx.fillRect(0, 0, bgW, bgH);
+
+    bgCtx.font = '12px Consolas, Menlo, monospace';
+    bgCtx.textAlign = 'center';
+    bgCtx.textBaseline = 'middle';
+
+    const startRow = Math.floor(bgRows * 0.42);
+    for (let r = startRow; r < bgRows; r += 2) {
+      const frac = (r - startRow) / Math.max(1, bgRows - startRow);
+      const a = 0.08 + 0.18 * frac;
+      bgCtx.fillStyle = `rgba(96, 110, 140, ${a.toFixed(3)})`;
+      const py = r * 22;
+      for (let c = (r % 2); c < bgCols; c += 2) {
+        bgCtx.fillText('.', c * 18 + 9, py);
+      }
+    }
+
+    for (let i = 0; i < bgNodes.length; i++) {
+      const n = bgNodes[i];
+      n.y += n.vy * dt;
+      if (n.y > bgH + 10) {
+        n.y = -10;
+        n.x = Math.random() * bgW;
+      }
+      const pulse = n.alpha * (0.65 + 0.35 * Math.sin(now * 0.0018 + n.phase));
+      bgCtx.fillStyle = `rgba(148, 162, 190, ${pulse.toFixed(3)})`;
+      bgCtx.fillText(n.ch, n.x, n.y);
+    }
+  }
+
+  initBg();
+  window.addEventListener('resize', initBg);
+  requestAnimationFrame(drawBg);
+
+  // =========================================================================
+  // 3. DOM 參照與 UI 狀態
+  // =========================================================================
+  const gateEl = document.getElementById('gate');
+  const hudStatus = document.getElementById('hudStatus');
+  const hudMeta = document.getElementById('hudMeta');
+  const googleSignInBtn = document.getElementById('googleSignInBtn');
+  const btnLabel = document.getElementById('btnLabel');
+  const statusMsg = document.getElementById('statusMsg');
+  const vaultFrame = document.getElementById('vaultFrame');
+  const signOutBtn = document.getElementById('signOutBtn');
+
+  function setStatus(text, type = '') {
+    statusMsg.textContent = text;
+    statusMsg.className = 'status' + (type ? ' ' + type : '');
+  }
+
+  function setBusy(busy) {
+    googleSignInBtn.disabled = busy;
+    btnLabel.textContent = busy ? 'VERIFYING...' : 'CONTINUE WITH GOOGLE';
+  }
+
+  // =========================================================================
+  // 4. Firebase Google 第三方驗證 + Firestore 權限讀取
+  // =========================================================================
+  const isConfigured =
+    FIREBASE_CONFIG.apiKey &&
+    !FIREBASE_CONFIG.apiKey.startsWith('YOUR_') &&
+    typeof window.firebase !== 'undefined';
+
+  let auth = null;
+  let db = null;
+  let googleProvider = null;
+
+  if (isConfigured) {
+    try {
+      if (!window.firebase.apps.length) {
+        window.firebase.initializeApp(FIREBASE_CONFIG);
+      }
+      auth = window.firebase.auth();
+      db = window.firebase.firestore();
+      googleProvider = new window.firebase.auth.GoogleAuthProvider();
+      googleProvider.setCustomParameters({ prompt: 'select_account' });
+    } catch (err) {
+      setStatus('Firebase 初始化失敗，請檢查設定值。', 'error');
+    }
+  }
+
+  function showProtectedHtml(htmlSource) {
+    bgRunning = false;
+    gateEl.classList.add('hidden');
+    hudStatus.style.display = 'none';
+    hudMeta.style.display = 'none';
+    vaultFrame.srcdoc = htmlSource;
+    vaultFrame.classList.add('active');
+    signOutBtn.classList.add('active');
+  }
+
+  function resetToGate(msg = '') {
+    vaultFrame.classList.remove('active');
+    vaultFrame.srcdoc = '';
+    signOutBtn.classList.remove('active');
+    gateEl.classList.remove('hidden');
+    hudStatus.style.display = '';
+    hudMeta.style.display = '';
+    hudStatus.textContent = '• status = locked';
+    if (!bgRunning) {
+      bgRunning = true;
+      bgLast = performance.now();
+      requestAnimationFrame(drawBg);
+    }
+    setBusy(false);
+    if (msg) setStatus(msg, 'error');
+  }
+
+  async function verifyAndLoadVault(user) {
+    if (!user || !user.email) {
+      resetToGate();
+      return;
+    }
+
+    if (user.email.trim().toLowerCase() !== ALLOWED_EMAIL.trim().toLowerCase()) {
+      await auth.signOut();
+      resetToGate('此 Google 帳號無權存取此頁面，請切換為授權帳號。');
+      return;
+    }
+
+    hudStatus.textContent = '• status = verifying';
+    setStatus('驗證通過，正在載入內容...', 'ok');
+
+    try {
+      const snap = await db.collection(VAULT_COLLECTION).doc(VAULT_DOC_ID).get();
+      if (!snap.exists || !snap.data() || !snap.data()[VAULT_HTML_FIELD]) {
+        await auth.signOut();
+        resetToGate('找不到受保護的內容文件，請確認 Firestore 設定。');
+        return;
+      }
+      showProtectedHtml(String(snap.data()[VAULT_HTML_FIELD]));
+    } catch (err) {
+      await auth.signOut();
+      resetToGate('權限驗證失敗，無法讀取受保護內容。');
+    }
+  }
+
+  if (auth) {
+    auth.getRedirectResult().catch(() => {});
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        verifyAndLoadVault(user);
+      }
+    });
+  }
+
+  googleSignInBtn.addEventListener('click', async () => {
+    if (!isConfigured || !auth || !db || !googleProvider) {
+      setStatus('尚未填入 Firebase 設定（請先於原始碼中更新 FIREBASE_CONFIG）。', 'error');
+      return;
+    }
+
+    setBusy(true);
+    setStatus('正在開啟 Google 驗證視窗...', '');
+
+    try {
+      const cred = await auth.signInWithPopup(googleProvider);
+      await verifyAndLoadVault(cred.user);
+    } catch (err) {
+      const code = err && err.code ? err.code : '';
+      if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
+        try {
+          await auth.signInWithRedirect(googleProvider);
+          return;
+        } catch (_) {}
+      }
+      setBusy(false);
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        setStatus('已取消登入。', '');
+      } else {
+        setStatus('Google 驗證失敗，請確認 Firebase 已啟用 Google 登入並加入網域。', 'error');
+      }
+    }
+  });
+
+  signOutBtn.addEventListener('click', async () => {
+    if (auth) {
+      try {
+        await auth.signOut();
+      } catch (_) {}
+    }
+    setStatus('已登出。', '');
+    resetToGate();
+  });
+})();
+</script>
+</body>
+</html>
