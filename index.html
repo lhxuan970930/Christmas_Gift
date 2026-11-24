@@ -419,17 +419,179 @@
     }
   }
 
+  // =========================================================================
+  // 3.5 Top-level Web Audio Engine (unlocked synchronously on Sign-In click)
+  // =========================================================================
+  const BGM_FREQ = {
+    'G2': 98.00,  'A2': 110.00, 'B2': 123.47, 'C3': 130.81, 'D3': 146.83,
+    'E3': 164.81, 'F#3': 185.00,'G3': 196.00, 'A3': 220.00, 'B3': 246.94,
+    'C4': 261.63, 'D4': 293.66, 'E4': 329.63, 'F#4': 369.99,'G4': 392.00,
+    'A4': 440.00, 'B4': 493.88, 'C5': 523.25, 'D5': 587.33
+  };
+  const BGM_SCORE = [
+    ['D4', 1.0, ['G3', 'B3']],
+    ['G4', 1.0, ['G3', 'B3', 'D4']],
+    ['G4', 0.5, null], ['A4', 0.5, null], ['G4', 0.5, null], ['F#4', 0.5, null],
+    ['E4', 1.0, ['C3', 'G3', 'C4']],
+    ['E4', 1.0, null], ['E4', 1.0, null],
+    ['A4', 1.0, ['A3', 'C4', 'E4']],
+    ['A4', 0.5, null], ['B4', 0.5, null], ['A4', 0.5, null], ['G4', 0.5, null],
+    ['F#4', 1.0, ['D3', 'A3', 'D4']],
+    ['D4', 1.0, null], ['D4', 1.0, null],
+    ['B4', 1.0, ['G3', 'B3', 'D4']],
+    ['B4', 0.5, null], ['C5', 0.5, null], ['B4', 0.5, null], ['A4', 0.5, null],
+    ['G4', 1.0, ['E3', 'B3', 'E4']],
+    ['E4', 1.0, null],
+    ['D4', 0.5, null], ['D4', 0.5, null],
+    ['E4', 1.0, ['C3', 'G3', 'C4']],
+    ['A4', 1.0, ['A2', 'E3', 'A3']],
+    ['F#4', 1.0, ['D3', 'A3', 'D4']],
+    ['G4', 2.0, ['G3', 'B3', 'D4']],
+    ['D4', 1.0, null],
+    ['G4', 1.0, ['G3', 'B3', 'D4']],
+    ['G4', 1.0, null], ['G4', 1.0, null],
+    ['F#4', 2.0, ['D3', 'A3', 'D4']],
+    ['F#4', 1.0, null],
+    ['G4', 1.0, ['E3', 'G3', 'B3']],
+    ['F#4', 1.0, null], ['E4', 1.0, null],
+    ['D4', 2.0, ['D3', 'F#3', 'A3']],
+    ['A4', 1.0, null],
+    ['B4', 1.0, ['G3', 'B3', 'D4']],
+    ['A4', 1.0, ['D3', 'F#3', 'A3']],
+    ['G4', 1.0, ['E3', 'G3', 'B3']],
+    ['D5', 1.0, ['G3', 'B3', 'D4']],
+    ['D4', 1.0, null],
+    ['D4', 0.5, null], ['D4', 0.5, null],
+    ['E4', 1.0, ['C3', 'G3', 'C4']],
+    ['A4', 1.0, ['A2', 'E3', 'A3']],
+    ['F#4', 1.0, ['D3', 'A3', 'D4']],
+    ['G4', 2.5, ['G3', 'B3', 'D4']],
+    [null, 0.5, null]
+  ];
+  const BGM_BEAT = 60 / 138;
+  let hostAudioCtx = null;
+  let hostGain = null;
+  let hostBgmTimer = null;
+  let hostScoreIdx = 0;
+  let hostNextNote = 0;
+  let hostMusicEnabled = true;
+  let vaultActive = false;
+
+  function unlockHostAudio() {
+    if (navigator.audioSession) {
+      try { navigator.audioSession.type = 'playback'; } catch (_) {}
+    }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    if (!hostAudioCtx) {
+      hostAudioCtx = new AC();
+      hostGain = hostAudioCtx.createGain();
+      hostGain.gain.value = hostMusicEnabled ? 0.75 : 0.0;
+      hostGain.connect(hostAudioCtx.destination);
+    }
+    try {
+      const b = hostAudioCtx.createBuffer(1, 1, 22050);
+      const s = hostAudioCtx.createBufferSource();
+      s.buffer = b;
+      s.connect(hostAudioCtx.destination);
+      s.start(0);
+    } catch (_) {}
+    if (hostAudioCtx.state !== 'running') {
+      hostAudioCtx.resume().catch(() => {});
+    }
+  }
+
+  function playHostNote(freq, startTime, duration, scale = 1.0) {
+    if (!hostAudioCtx || !hostGain) return;
+    const o1 = hostAudioCtx.createOscillator();
+    const o2 = hostAudioCtx.createOscillator();
+    const g1 = hostAudioCtx.createGain();
+    const g2 = hostAudioCtx.createGain();
+    o1.type = 'sine'; o1.frequency.setValueAtTime(freq, startTime);
+    o2.type = 'triangle'; o2.frequency.setValueAtTime(freq * 2, startTime);
+    const pk = 0.16 * scale;
+    g1.gain.setValueAtTime(0.0001, startTime);
+    g1.gain.linearRampToValueAtTime(pk, startTime + 0.012);
+    g1.gain.exponentialRampToValueAtTime(0.0001, startTime + Math.max(duration * 1.35, 0.45));
+    g2.gain.setValueAtTime(0.0001, startTime);
+    g2.gain.linearRampToValueAtTime(pk * 0.22, startTime + 0.008);
+    g2.gain.exponentialRampToValueAtTime(0.0001, startTime + Math.max(duration * 0.65, 0.2));
+    o1.connect(g1).connect(hostGain);
+    o2.connect(g2).connect(hostGain);
+    const stopAt = startTime + Math.max(duration * 1.4, 0.5);
+    o1.start(startTime); o2.start(startTime);
+    o1.stop(stopAt); o2.stop(stopAt);
+  }
+
+  function tickHostMusic() {
+    if (!vaultActive || !hostAudioCtx || !hostMusicEnabled || hostAudioCtx.state !== 'running') return;
+    while (hostNextNote < hostAudioCtx.currentTime + 0.25) {
+      const [note, beats, chord] = BGM_SCORE[hostScoreIdx];
+      const dur = beats * BGM_BEAT;
+      if (note && BGM_FREQ[note]) playHostNote(BGM_FREQ[note], hostNextNote, dur, 1.0);
+      if (chord) {
+        for (let i = 0; i < chord.length; i++) {
+          const cf = BGM_FREQ[chord[i]];
+          if (cf) playHostNote(cf, hostNextNote, dur * 2.2, 0.26);
+        }
+      }
+      hostNextNote += dur;
+      hostScoreIdx = (hostScoreIdx + 1) % BGM_SCORE.length;
+    }
+  }
+
+  function startHostMusic() {
+    if (!hostAudioCtx) unlockHostAudio();
+    if (!hostAudioCtx) return;
+    hostScoreIdx = 0;
+    hostNextNote = hostAudioCtx.currentTime + 0.06;
+    if (!hostBgmTimer) hostBgmTimer = setInterval(tickHostMusic, 80);
+    tickHostMusic();
+  }
+
+  function stopHostMusic() {
+    if (hostBgmTimer) {
+      clearInterval(hostBgmTimer);
+      hostBgmTimer = null;
+    }
+  }
+
+  window.addEventListener('message', (e) => {
+    const data = e && e.data;
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'bgm_toggle') {
+      unlockHostAudio();
+      hostMusicEnabled = !!data.enabled;
+      if (hostGain && hostAudioCtx) {
+        hostGain.gain.setTargetAtTime(hostMusicEnabled ? 0.75 : 0.0, hostAudioCtx.currentTime, 0.03);
+        if (hostMusicEnabled) {
+          hostNextNote = hostAudioCtx.currentTime + 0.05;
+          tickHostMusic();
+        }
+      }
+    } else if (data.type === 'bgm_unlock') {
+      unlockHostAudio();
+      if (vaultActive && hostMusicEnabled && hostAudioCtx && hostAudioCtx.state === 'running') {
+        tickHostMusic();
+      }
+    }
+  });
+
   function showProtectedHtml(htmlSource) {
     bgRunning = false;
+    vaultActive = true;
     gateEl.classList.add('hidden');
     hudStatus.style.display = 'none';
     hudMeta.style.display = 'none';
     vaultFrame.srcdoc = htmlSource;
     vaultFrame.classList.add('active');
     signOutBtn.classList.add('active');
+    startHostMusic();
   }
 
   function resetToGate(msg = '') {
+    vaultActive = false;
+    stopHostMusic();
     vaultFrame.classList.remove('active');
     vaultFrame.srcdoc = '';
     signOutBtn.classList.remove('active');
@@ -491,6 +653,8 @@
   }
 
   googleSignInBtn.addEventListener('click', async () => {
+    // Synchronously unlock Web Audio on user tap before async OAuth popup/redirect
+    unlockHostAudio();
     if (window.location.protocol === 'file:') {
       setStatus('請透過 GitHub Pages（https://）開啟網頁，本機 file:// 無法執行 Google 驗證。', 'error');
       return;
