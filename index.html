@@ -1,706 +1,1874 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PRIVATE ACCESS</title>
+<title>ASCII Christmas Tree 2026</title>
 <style>
-  *, *::before, *::after {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-  }
-  :root {
-    --bg: #02060a;
-    --panel: rgba(5, 11, 19, 0.86);
-    --border: rgba(96, 104, 122, 0.36);
-    --dim: rgb(96, 104, 122);
-    --sign: rgb(176, 168, 196);
-    --accent: rgb(255, 196, 90);
-    --text: rgb(224, 232, 244);
-    --err: rgb(245, 108, 108);
-    --ok: rgb(120, 214, 152);
-    --mono: Consolas, Menlo, "DejaVu Sans Mono", "Courier New", "Noto Sans TC", monospace;
-  }
-  html, body {
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--mono);
-    -webkit-font-smoothing: antialiased;
-  }
-
-  #bgCanvas {
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    display: block;
-    z-index: 0;
-  }
-
-  .hud-top-right {
-    position: fixed;
-    top: 14px;
-    right: 16px;
-    z-index: 2;
-    font-size: 13px;
-    color: var(--accent);
-    letter-spacing: 0.03em;
-    pointer-events: none;
-  }
-  .hud-bottom-left {
-    position: fixed;
-    bottom: 16px;
-    left: 16px;
-    z-index: 2;
-    font-size: 12px;
-    line-height: 1.65;
-    pointer-events: none;
-  }
-  .hud-sign {
-    color: var(--sign);
-  }
-  .hud-dim {
-    color: var(--dim);
-  }
-
-  #gate {
-    position: fixed;
-    inset: 0;
-    z-index: 3;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    transition: opacity 0.45s ease;
-  }
-  #gate.hidden {
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  .card {
-    position: relative;
-    width: 100%;
-    max-width: 390px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    padding: 32px 26px 28px;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.65);
-  }
-  .card::before, .card::after {
-    content: "";
-    position: absolute;
-    width: 10px;
-    height: 10px;
-    border-color: var(--accent);
-    border-style: solid;
-    opacity: 0.75;
-    pointer-events: none;
-  }
-  .card::before {
-    top: -1px;
-    left: -1px;
-    border-width: 1px 0 0 1px;
-  }
-  .card::after {
-    bottom: -1px;
-    right: -1px;
-    border-width: 0 1px 1px 0;
-  }
-
-  .kicker {
-    font-size: 11px;
-    color: var(--accent);
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    margin-bottom: 8px;
-  }
-  .title {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--text);
-    letter-spacing: 0.06em;
-    margin-bottom: 8px;
-  }
-  .subtitle {
-    font-size: 12px;
-    color: var(--dim);
-    margin-bottom: 26px;
-    line-height: 1.6;
-  }
-
-  .google-btn {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    padding: 13px 16px;
-    background: rgba(255, 196, 90, 0.08);
-    border: 1px solid rgba(255, 196, 90, 0.65);
-    color: var(--accent);
-    font-family: var(--mono);
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    cursor: pointer;
-    border-radius: 2px;
-    transition: background 0.2s, border-color 0.2s, transform 0.1s;
-  }
-  .google-btn:hover:not(:disabled) {
-    background: rgba(255, 196, 90, 0.18);
-    border-color: var(--accent);
-  }
-  .google-btn:active:not(:disabled) {
-    transform: translateY(1px);
-  }
-  .google-btn:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
-  .google-icon {
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
-  }
-
-  .hint-line {
-    margin-top: 14px;
-    font-size: 11px;
-    color: rgba(96, 104, 122, 0.85);
-    line-height: 1.5;
-  }
-
-  .status {
-    min-height: 20px;
-    margin-top: 14px;
-    font-size: 12px;
-    line-height: 1.5;
-    color: var(--dim);
-    word-break: break-word;
-  }
-  .status.error {
-    color: var(--err);
-  }
-  .status.ok {
-    color: var(--ok);
-  }
-
-  #vaultFrame {
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    border: none;
-    background: var(--bg);
-    z-index: 10;
-    display: none;
-  }
-  #vaultFrame.active {
-    display: block;
-  }
-  #signOutBtn {
-    position: fixed;
-    bottom: 14px;
-    right: 16px;
-    z-index: 20;
-    display: none;
-    background: rgba(2, 6, 10, 0.65);
-    border: 1px solid rgba(96, 104, 122, 0.45);
-    color: var(--dim);
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 4px 9px;
-    border-radius: 3px;
-    cursor: pointer;
-    transition: color 0.2s, border-color 0.2s;
-  }
-  #signOutBtn.active {
-    display: block;
-  }
-  #signOutBtn:hover {
-    color: var(--accent);
-    border-color: rgba(255, 196, 90, 0.65);
-  }
+*, *::before, *::after {
+box-sizing: border-box;
+margin: 0;
+padding: 0;
+}
+html, body {
+width: 100%;
+height: 100%;
+overflow: hidden;
+background: #02060a;
+display: flex;
+align-items: center;
+justify-content: center;
+user-select: none;
+-webkit-user-select: none;
+touch-action: manipulation;
+}
+#stage {
+display: block;
+background: #02060a;
+}
+#bgmToggle {
+position: fixed;
+top: 12px;
+left: 12px;
+z-index: 10;
+background: rgba(2, 6, 10, 0.55);
+border: 1px solid rgba(96, 104, 122, 0.45);
+color: rgb(255, 196, 90);
+font-family: Consolas, Menlo, "DejaVu Sans Mono", "Courier New", "Noto Sans TC", monospace;
+font-size: 12px;
+padding: 4px 9px;
+border-radius: 4px;
+cursor: pointer;
+transition: border-color 0.2s, opacity 0.2s;
+opacity: 0.85;
+}
+#bgmToggle:hover {
+opacity: 1;
+border-color: rgba(255, 196, 90, 0.75);
+}
+#bgmToggle.muted {
+color: rgb(96, 104, 122);
+}
+#fxOverlay {
+position: fixed;
+inset: 0;
+width: 100%;
+height: 100%;
+pointer-events: none;
+z-index: 6;
+}
+/* Entry Camera Permission Modal */
+#camModal {
+position: fixed;
+inset: 0;
+z-index: 30;
+display: flex;
+align-items: center;
+justify-content: center;
+padding: 20px;
+background: radial-gradient(circle at 50% 40%, rgba(10, 22, 42, 0.86), rgba(2, 6, 10, 0.94));
+backdrop-filter: blur(8px);
+-webkit-backdrop-filter: blur(8px);
+transition: opacity 0.45s ease;
+}
+#camModal.hidden {
+opacity: 0;
+pointer-events: none;
+}
+.cam-card {
+width: 100%;
+max-width: 410px;
+background: rgba(11, 19, 34, 0.88);
+border: 1px solid rgba(255, 196, 90, 0.36);
+border-radius: 16px;
+padding: 28px 24px 24px;
+text-align: center;
+color: #f3ead8;
+font-family: "Noto Sans TC", "PingFang TC", -apple-system, BlinkMacSystemFont, sans-serif;
+box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+}
+.cam-badge {
+display: inline-block;
+font-size: 11px;
+letter-spacing: 0.2em;
+color: rgb(255, 196, 90);
+border: 1px solid rgba(255, 196, 90, 0.35);
+border-radius: 999px;
+padding: 4px 12px;
+margin-bottom: 14px;
+}
+.cam-title {
+font-size: 21px;
+font-weight: 600;
+color: #faecd0;
+margin-bottom: 10px;
+letter-spacing: 0.06em;
+}
+.cam-desc {
+font-size: 13px;
+line-height: 1.75;
+color: rgba(243, 234, 216, 0.78);
+margin-bottom: 16px;
+}
+.cam-steps {
+text-align: left;
+background: rgba(255, 255, 255, 0.04);
+border: 1px solid rgba(255, 196, 90, 0.16);
+border-radius: 10px;
+padding: 12px 14px;
+margin-bottom: 18px;
+font-size: 12.5px;
+line-height: 1.8;
+color: rgba(243, 234, 216, 0.88);
+}
+.cam-steps b {
+color: rgb(255, 196, 90);
+font-weight: 500;
+}
+.cam-btn-primary {
+width: 100%;
+padding: 13px 18px;
+border-radius: 999px;
+border: 1px solid rgba(255, 215, 130, 0.8);
+background: linear-gradient(135deg, #f3d9a4, #e5b860);
+color: #091224;
+font-size: 14px;
+font-weight: 600;
+letter-spacing: 0.06em;
+cursor: pointer;
+margin-bottom: 10px;
+transition: transform 0.15s ease, filter 0.2s ease;
+}
+.cam-btn-primary:hover:not(:disabled) {
+transform: translateY(-1px);
+filter: brightness(1.05);
+}
+.cam-btn-primary:disabled {
+opacity: 0.6;
+cursor: not-allowed;
+}
+.cam-btn-secondary {
+width: 100%;
+padding: 9px 14px;
+border-radius: 999px;
+border: 1px solid rgba(243, 234, 216, 0.22);
+background: transparent;
+color: rgba(243, 234, 216, 0.72);
+font-size: 12px;
+cursor: pointer;
+transition: border-color 0.2s, color 0.2s;
+}
+.cam-btn-secondary:hover {
+border-color: rgba(255, 196, 90, 0.55);
+color: #faecd0;
+}
+.cam-privacy {
+margin-top: 12px;
+font-size: 11px;
+color: rgba(243, 234, 216, 0.48);
+}
+#camError {
+margin-top: 10px;
+font-size: 12px;
+color: #f4978e;
+min-height: 16px;
+}
+/* Top Gesture Prompt HUD */
+#gestureHud {
+position: fixed;
+top: 12px;
+left: 50%;
+transform: translateX(-50%);
+z-index: 15;
+display: none;
+flex-direction: column;
+align-items: center;
+gap: 5px;
+max-width: min(92vw, 440px);
+padding: 9px 18px;
+border-radius: 14px;
+background: rgba(6, 13, 24, 0.76);
+border: 1px solid rgba(255, 196, 90, 0.34);
+backdrop-filter: blur(10px);
+-webkit-backdrop-filter: blur(10px);
+color: #faecd0;
+font-family: "Noto Sans TC", "PingFang TC", -apple-system, sans-serif;
+text-align: center;
+pointer-events: none;
+transition: opacity 0.35s ease;
+}
+#gestureHud.active {
+display: flex;
+}
+.hud-step-row {
+display: flex;
+align-items: center;
+gap: 8px;
+font-size: 13.5px;
+font-weight: 500;
+letter-spacing: 0.04em;
+}
+.hud-tag {
+font-size: 11px;
+padding: 2px 8px;
+border-radius: 999px;
+background: rgba(255, 196, 90, 0.18);
+border: 1px solid rgba(255, 196, 90, 0.45);
+color: rgb(255, 196, 90);
+white-space: nowrap;
+}
+#hudSub {
+font-size: 11.5px;
+color: rgba(243, 234, 216, 0.75);
+}
+/* Mini Mirrored Camera Preview */
+#camPreviewWrap {
+position: fixed;
+top: 52px;
+left: 12px;
+z-index: 14;
+display: none;
+width: 118px;
+border-radius: 10px;
+overflow: hidden;
+border: 1px solid rgba(255, 196, 90, 0.35);
+background: #050a12;
+box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+#camPreviewWrap.active {
+display: block;
+}
+#camVideo {
+display: block;
+width: 100%;
+height: 88px;
+object-fit: cover;
+transform: scaleX(-1);
+}
+#camStatusBar {
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 3px 7px;
+font-size: 10px;
+font-family: "Noto Sans TC", sans-serif;
+color: rgba(243, 234, 216, 0.78);
+background: rgba(4, 9, 18, 0.9);
+}
+.cam-dot {
+display: inline-block;
+width: 6px;
+height: 6px;
+border-radius: 50%;
+background: #6b7280;
+margin-right: 4px;
+vertical-align: middle;
+}
+.cam-dot.hand-ok {
+background: #4ade80;
+box-shadow: 0 0 6px #4ade80;
+}
+/* Bottom-left Fallback / Replay Controls */
+#gestureActions {
+position: fixed;
+bottom: 54px;
+right: 14px;
+z-index: 16;
+display: none;
+flex-direction: column;
+align-items: flex-end;
+gap: 8px;
+}
+#gestureActions.active {
+display: flex;
+}
+.action-pill {
+padding: 7px 13px;
+border-radius: 999px;
+border: 1px solid rgba(255, 196, 90, 0.42);
+background: rgba(6, 13, 24, 0.76);
+color: rgb(255, 196, 90);
+font-family: "Noto Sans TC", sans-serif;
+font-size: 11.5px;
+letter-spacing: 0.04em;
+cursor: pointer;
+backdrop-filter: blur(8px);
+-webkit-backdrop-filter: blur(8px);
+transition: background 0.2s, transform 0.15s;
+}
+.action-pill:hover {
+background: rgba(255, 196, 90, 0.18);
+}
+.action-pill.subtle {
+border-color: rgba(176, 168, 196, 0.35);
+color: rgba(243, 234, 216, 0.78);
+}
+@media (max-width: 520px) {
+#camPreviewWrap {
+width: 96px;
+top: 48px;
+left: 8px;
+}
+#camVideo {
+height: 72px;
+}
+#gestureHud {
+top: 48px;
+padding: 7px 12px;
+}
+.hud-step-row {
+font-size: 12px;
+}
+}
 </style>
 </head>
 <body>
-<canvas id="bgCanvas" aria-hidden="true"></canvas>
-
-<div class="hud-top-right" id="hudStatus">• status = locked</div>
-<div class="hud-bottom-left" id="hudMeta">
-  <div class="hud-sign">PRIVATE GATEWAY</div>
-  <div class="hud-dim">auth google &nbsp;&nbsp; access restricted</div>
+<button id="bgmToggle" type="button" aria-label="Toggle Christmas Music">♪ 音樂：開</button>
+<canvas id="stage" aria-label="ASCII Christmas Tree 2026"></canvas>
+<canvas id="fxOverlay" aria-hidden="true"></canvas>
+<div id="camModal" role="dialog" aria-modal="true" aria-labelledby="camTitle">
+<div class="cam-card">
+<div class="cam-badge">INTERACTIVE CHRISTMAS 2026</div>
+<h1 class="cam-title" id="camTitle">用手勢親手點亮聖誕樹</h1>
+<p class="cam-desc">開啟前置鏡頭，跟著四個手勢步驟把這棵聖誕樹一步步佈置完成。</p>
+<div class="cam-steps">
+<div><b>1. 單手向上滑</b> — 立起聖誕樹</div>
+<div><b>2. 空中畫圓 × 3 圈</b> — 纏繞彩帶與燈串</div>
+<div><b>3. 由上往下畫</b> — 放上樹頂星星</div>
+<div><b>4. 握拳再張開 × 5 次</b> — 一次放上一個禮物</div>
 </div>
-
-<main id="gate">
-  <section class="card" aria-labelledby="gateTitle">
-    <div class="kicker">• restricted node</div>
-    <h1 class="title" id="gateTitle">ACCESS REQUIRED</h1>
-    <p class="subtitle">請使用授權的 Google 帳號進行第三方驗證以繼續。</p>
-
-    <button type="button" class="google-btn" id="googleSignInBtn">
-      <svg class="google-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <path fill="currentColor" d="M21.8 12.23c0-.71-.06-1.4-.18-2.06H12v3.9h5.5a4.7 4.7 0 0 1-2.04 3.08v2.56h3.3c1.93-1.78 3.04-4.4 3.04-7.48z"/>
-        <path fill="currentColor" d="M12 22c2.75 0 5.06-.91 6.75-2.47l-3.3-2.56c-.91.61-2.08.98-3.45.98-2.66 0-4.91-1.8-5.72-4.21H2.87v2.64A10.2 10.2 0 0 0 12 22z"/>
-        <path fill="currentColor" d="M6.28 13.74a6.12 6.12 0 0 1 0-3.48V7.62H2.87a10.2 10.2 0 0 0 0 8.76l3.41-2.64z"/>
-        <path fill="currentColor" d="M12 6.05c1.5 0 2.84.51 3.9 1.52l2.92-2.92C17.05 2.99 14.75 2 12 2a10.2 10.2 0 0 0-9.13 5.62l3.41 2.64C7.09 7.85 9.34 6.05 12 6.05z"/>
-      </svg>
-      <span id="btnLabel">CONTINUE WITH GOOGLE</span>
-    </button>
-
-    <p class="hint-line">直接以原本的 Google 帳號密碼登入，無需另外註冊。</p>
-    <div class="status" id="statusMsg" role="status" aria-live="polite"></div>
-  </section>
-</main>
-
-<iframe id="vaultFrame" title="Protected Content" allow="autoplay"></iframe>
-<button type="button" id="signOutBtn">SIGN OUT</button>
-
-<!-- Firebase Compat SDK (pinned version for GitHub Pages static hosting) -->
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-
+<button type="button" class="cam-btn-primary" id="enableCamBtn">開啟鏡頭，開始體驗</button>
+<button type="button" class="cam-btn-secondary" id="skipCamBtn">先不開鏡頭（改用點擊觸發）</button>
+<div id="camError" role="status" aria-live="polite"></div>
+<p class="cam-privacy">鏡頭畫面僅在你的裝置本地即時辨識手勢，不會錄影或上傳。</p>
+</div>
+</div>
+<div id="gestureHud" aria-live="polite">
+<div class="hud-step-row">
+<span class="hud-tag" id="hudStepTag">1 / 4</span>
+<span id="hudPrompt">單手由下往上滑，立起聖誕樹</span>
+</div>
+<div id="hudSub">將手舉到鏡頭前，向上揮動</div>
+</div>
+<div id="camPreviewWrap">
+<video id="camVideo" playsinline muted autoplay></video>
+<div id="camStatusBar">
+<span><span class="cam-dot" id="camDot"></span><span id="camDotText">等待手部</span></span>
+</div>
+</div>
+<div id="gestureActions">
+<button type="button" class="action-pill" id="manualStepBtn">手動觸發這一步</button>
+<button type="button" class="action-pill subtle" id="replayGestureBtn" style="display:none;">重新佈置一次</button>
+</div>
 <script>
 (() => {
-  'use strict';
-
-  // =========================================================================
-  // 1. Firebase 設定（已填入 for-kiki 專案設定）
-  // =========================================================================
-  const FIREBASE_CONFIG = {
-    apiKey: 'AIzaSyA-MFtQOYzJNxCx9I98ERcwRgoOFO1Zpr4',
-    authDomain: 'for-kiki.firebaseapp.com',
-    projectId: 'for-kiki',
-    storageBucket: 'for-kiki.firebasestorage.app',
-    messagingSenderId: '1079956903157',
-    appId: '1:1079956903157:web:fb10e1ffac2d15ccf0e1bc',
-    measurementId: 'G-N8K6PWLYKS'
-  };
-
-  // 授權帳號白名單（需搭配 firestore.rules 伺服器端驗證）
-  const ALLOWED_EMAILS = [
-    'linkiki971101@gmail.com',
-    'lhxuan970930@gmail.com'
-  ];
-
-  // Firestore 儲存受保護 HTML 原始碼的位置
-  const VAULT_COLLECTION = 'private_pages';
-  const VAULT_DOC_ID = '2026 Christmas';
-  const VAULT_HTML_FIELD = 'html';
-
-  // =========================================================================
-  // 2. 極簡單色 ASCII 點陣背景（無任何節日或內容提示）
-  // =========================================================================
-  const bgCanvas = document.getElementById('bgCanvas');
-  const bgCtx = bgCanvas.getContext('2d', { alpha: false });
-  let bgW = 0, bgH = 0, bgCols = 0, bgRows = 0;
-  let bgNodes = [];
-  let bgRunning = true;
-
-  function initBg() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    bgW = window.innerWidth;
-    bgH = window.innerHeight;
-    bgCanvas.width = Math.floor(bgW * dpr);
-    bgCanvas.height = Math.floor(bgH * dpr);
-    bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    bgCols = Math.ceil(bgW / 18);
-    bgRows = Math.ceil(bgH / 22);
-    bgNodes = [];
-    const glyphs = ['.', '.', '.', ':', '+', '·'];
-    for (let i = 0; i < 140; i++) {
-      bgNodes.push({
-        x: Math.random() * bgW,
-        y: Math.random() * bgH,
-        vy: 6 + Math.random() * 14,
-        phase: Math.random() * Math.PI * 2,
-        ch: glyphs[Math.floor(Math.random() * glyphs.length)],
-        alpha: 0.14 + Math.random() * 0.28
-      });
-    }
-  }
-
-  let bgLast = performance.now();
-  function drawBg(now) {
-    if (!bgRunning) return;
-    requestAnimationFrame(drawBg);
-    const dt = Math.min((now - bgLast) / 1000, 0.1);
-    bgLast = now;
-
-    bgCtx.fillStyle = '#02060a';
-    bgCtx.fillRect(0, 0, bgW, bgH);
-
-    bgCtx.font = '12px Consolas, Menlo, monospace';
-    bgCtx.textAlign = 'center';
-    bgCtx.textBaseline = 'middle';
-
-    const startRow = Math.floor(bgRows * 0.42);
-    for (let r = startRow; r < bgRows; r += 2) {
-      const frac = (r - startRow) / Math.max(1, bgRows - startRow);
-      const a = 0.08 + 0.18 * frac;
-      bgCtx.fillStyle = `rgba(96, 110, 140, ${a.toFixed(3)})`;
-      const py = r * 22;
-      for (let c = (r % 2); c < bgCols; c += 2) {
-        bgCtx.fillText('.', c * 18 + 9, py);
-      }
-    }
-
-    for (let i = 0; i < bgNodes.length; i++) {
-      const n = bgNodes[i];
-      n.y += n.vy * dt;
-      if (n.y > bgH + 10) {
-        n.y = -10;
-        n.x = Math.random() * bgW;
-      }
-      const pulse = n.alpha * (0.65 + 0.35 * Math.sin(now * 0.0018 + n.phase));
-      bgCtx.fillStyle = `rgba(148, 162, 190, ${pulse.toFixed(3)})`;
-      bgCtx.fillText(n.ch, n.x, n.y);
-    }
-  }
-
-  initBg();
-  window.addEventListener('resize', initBg);
-  requestAnimationFrame(drawBg);
-
-  // =========================================================================
-  // 3. DOM 參照與 UI 狀態
-  // =========================================================================
-  const gateEl = document.getElementById('gate');
-  const hudStatus = document.getElementById('hudStatus');
-  const hudMeta = document.getElementById('hudMeta');
-  const googleSignInBtn = document.getElementById('googleSignInBtn');
-  const btnLabel = document.getElementById('btnLabel');
-  const statusMsg = document.getElementById('statusMsg');
-  const vaultFrame = document.getElementById('vaultFrame');
-  const signOutBtn = document.getElementById('signOutBtn');
-
-  function setStatus(text, type = '') {
-    statusMsg.textContent = text;
-    statusMsg.className = 'status' + (type ? ' ' + type : '');
-  }
-
-  function setBusy(busy) {
-    googleSignInBtn.disabled = busy;
-    btnLabel.textContent = busy ? 'VERIFYING...' : 'CONTINUE WITH GOOGLE';
-  }
-
-  // =========================================================================
-  // 4. Firebase Google 第三方驗證 + Firestore 權限讀取
-  // =========================================================================
-  const isConfigured =
-    FIREBASE_CONFIG.apiKey &&
-    !FIREBASE_CONFIG.apiKey.startsWith('YOUR_') &&
-    typeof window.firebase !== 'undefined';
-
-  let auth = null;
-  let db = null;
-  let googleProvider = null;
-
-  if (isConfigured) {
-    try {
-      if (!window.firebase.apps.length) {
-        window.firebase.initializeApp(FIREBASE_CONFIG);
-      }
-      auth = window.firebase.auth();
-      db = window.firebase.firestore();
-      googleProvider = new window.firebase.auth.GoogleAuthProvider();
-      googleProvider.setCustomParameters({ prompt: 'select_account' });
-    } catch (err) {
-      setStatus('Firebase 初始化失敗，請檢查設定值。', 'error');
-    }
-  }
-
-  // =========================================================================
-  // 3.5 Top-level Web Audio Engine (unlocked synchronously on Sign-In click)
-  // =========================================================================
-  const BGM_FREQ = {
-    'G2': 98.00,  'A2': 110.00, 'B2': 123.47, 'C3': 130.81, 'D3': 146.83,
-    'E3': 164.81, 'F#3': 185.00,'G3': 196.00, 'A3': 220.00, 'B3': 246.94,
-    'C4': 261.63, 'D4': 293.66, 'E4': 329.63, 'F#4': 369.99,'G4': 392.00,
-    'A4': 440.00, 'B4': 493.88, 'C5': 523.25, 'D5': 587.33
-  };
-  const BGM_SCORE = [
-    ['D4', 1.0, ['G3', 'B3']],
-    ['G4', 1.0, ['G3', 'B3', 'D4']],
-    ['G4', 0.5, null], ['A4', 0.5, null], ['G4', 0.5, null], ['F#4', 0.5, null],
-    ['E4', 1.0, ['C3', 'G3', 'C4']],
-    ['E4', 1.0, null], ['E4', 1.0, null],
-    ['A4', 1.0, ['A3', 'C4', 'E4']],
-    ['A4', 0.5, null], ['B4', 0.5, null], ['A4', 0.5, null], ['G4', 0.5, null],
-    ['F#4', 1.0, ['D3', 'A3', 'D4']],
-    ['D4', 1.0, null], ['D4', 1.0, null],
-    ['B4', 1.0, ['G3', 'B3', 'D4']],
-    ['B4', 0.5, null], ['C5', 0.5, null], ['B4', 0.5, null], ['A4', 0.5, null],
-    ['G4', 1.0, ['E3', 'B3', 'E4']],
-    ['E4', 1.0, null],
-    ['D4', 0.5, null], ['D4', 0.5, null],
-    ['E4', 1.0, ['C3', 'G3', 'C4']],
-    ['A4', 1.0, ['A2', 'E3', 'A3']],
-    ['F#4', 1.0, ['D3', 'A3', 'D4']],
-    ['G4', 2.0, ['G3', 'B3', 'D4']],
-    ['D4', 1.0, null],
-    ['G4', 1.0, ['G3', 'B3', 'D4']],
-    ['G4', 1.0, null], ['G4', 1.0, null],
-    ['F#4', 2.0, ['D3', 'A3', 'D4']],
-    ['F#4', 1.0, null],
-    ['G4', 1.0, ['E3', 'G3', 'B3']],
-    ['F#4', 1.0, null], ['E4', 1.0, null],
-    ['D4', 2.0, ['D3', 'F#3', 'A3']],
-    ['A4', 1.0, null],
-    ['B4', 1.0, ['G3', 'B3', 'D4']],
-    ['A4', 1.0, ['D3', 'F#3', 'A3']],
-    ['G4', 1.0, ['E3', 'G3', 'B3']],
-    ['D5', 1.0, ['G3', 'B3', 'D4']],
-    ['D4', 1.0, null],
-    ['D4', 0.5, null], ['D4', 0.5, null],
-    ['E4', 1.0, ['C3', 'G3', 'C4']],
-    ['A4', 1.0, ['A2', 'E3', 'A3']],
-    ['F#4', 1.0, ['D3', 'A3', 'D4']],
-    ['G4', 2.5, ['G3', 'B3', 'D4']],
-    [null, 0.5, null]
-  ];
-  const BGM_BEAT = 60 / 138;
-  let hostAudioCtx = null;
-  let hostGain = null;
-  let hostBgmTimer = null;
-  let hostScoreIdx = 0;
-  let hostNextNote = 0;
-  let hostMusicEnabled = true;
-  let vaultActive = false;
-
-  function unlockHostAudio() {
-    if (navigator.audioSession) {
-      try { navigator.audioSession.type = 'playback'; } catch (_) {}
-    }
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return;
-    if (!hostAudioCtx) {
-      hostAudioCtx = new AC();
-      hostGain = hostAudioCtx.createGain();
-      hostGain.gain.value = hostMusicEnabled ? 0.75 : 0.0;
-      hostGain.connect(hostAudioCtx.destination);
-    }
-    try {
-      const b = hostAudioCtx.createBuffer(1, 1, 22050);
-      const s = hostAudioCtx.createBufferSource();
-      s.buffer = b;
-      s.connect(hostAudioCtx.destination);
-      s.start(0);
-    } catch (_) {}
-    if (hostAudioCtx.state !== 'running') {
-      hostAudioCtx.resume().catch(() => {});
-    }
-  }
-
-  function playHostNote(freq, startTime, duration, scale = 1.0) {
-    if (!hostAudioCtx || !hostGain) return;
-    const o1 = hostAudioCtx.createOscillator();
-    const o2 = hostAudioCtx.createOscillator();
-    const g1 = hostAudioCtx.createGain();
-    const g2 = hostAudioCtx.createGain();
-    o1.type = 'sine'; o1.frequency.setValueAtTime(freq, startTime);
-    o2.type = 'triangle'; o2.frequency.setValueAtTime(freq * 2, startTime);
-    const pk = 0.16 * scale;
-    g1.gain.setValueAtTime(0.0001, startTime);
-    g1.gain.linearRampToValueAtTime(pk, startTime + 0.012);
-    g1.gain.exponentialRampToValueAtTime(0.0001, startTime + Math.max(duration * 1.35, 0.45));
-    g2.gain.setValueAtTime(0.0001, startTime);
-    g2.gain.linearRampToValueAtTime(pk * 0.22, startTime + 0.008);
-    g2.gain.exponentialRampToValueAtTime(0.0001, startTime + Math.max(duration * 0.65, 0.2));
-    o1.connect(g1).connect(hostGain);
-    o2.connect(g2).connect(hostGain);
-    const stopAt = startTime + Math.max(duration * 1.4, 0.5);
-    o1.start(startTime); o2.start(startTime);
-    o1.stop(stopAt); o2.stop(stopAt);
-  }
-
-  function tickHostMusic() {
-    if (!vaultActive || !hostAudioCtx || !hostMusicEnabled || hostAudioCtx.state !== 'running') return;
-    while (hostNextNote < hostAudioCtx.currentTime + 0.25) {
-      const [note, beats, chord] = BGM_SCORE[hostScoreIdx];
-      const dur = beats * BGM_BEAT;
-      if (note && BGM_FREQ[note]) playHostNote(BGM_FREQ[note], hostNextNote, dur, 1.0);
-      if (chord) {
-        for (let i = 0; i < chord.length; i++) {
-          const cf = BGM_FREQ[chord[i]];
-          if (cf) playHostNote(cf, hostNextNote, dur * 2.2, 0.26);
-        }
-      }
-      hostNextNote += dur;
-      hostScoreIdx = (hostScoreIdx + 1) % BGM_SCORE.length;
-    }
-  }
-
-  function startHostMusic() {
-    if (!hostAudioCtx) unlockHostAudio();
-    if (!hostAudioCtx) return;
-    hostScoreIdx = 0;
-    hostNextNote = hostAudioCtx.currentTime + 0.06;
-    if (!hostBgmTimer) hostBgmTimer = setInterval(tickHostMusic, 80);
-    tickHostMusic();
-  }
-
-  function stopHostMusic() {
-    if (hostBgmTimer) {
-      clearInterval(hostBgmTimer);
-      hostBgmTimer = null;
-    }
-  }
-
-  window.addEventListener('message', (e) => {
-    const data = e && e.data;
-    if (!data || typeof data !== 'object') return;
-    if (data.type === 'bgm_toggle') {
-      unlockHostAudio();
-      hostMusicEnabled = !!data.enabled;
-      if (hostGain && hostAudioCtx) {
-        hostGain.gain.setTargetAtTime(hostMusicEnabled ? 0.75 : 0.0, hostAudioCtx.currentTime, 0.03);
-        if (hostMusicEnabled) {
-          hostNextNote = hostAudioCtx.currentTime + 0.05;
-          tickHostMusic();
-        }
-      }
-    } else if (data.type === 'bgm_unlock') {
-      unlockHostAudio();
-      if (vaultActive && hostMusicEnabled && hostAudioCtx && hostAudioCtx.state === 'running') {
-        tickHostMusic();
-      }
-    }
-  });
-
-  function showProtectedHtml(htmlSource) {
-    bgRunning = false;
-    vaultActive = true;
-    gateEl.classList.add('hidden');
-    hudStatus.style.display = 'none';
-    hudMeta.style.display = 'none';
-    vaultFrame.srcdoc = htmlSource;
-    vaultFrame.classList.add('active');
-    signOutBtn.classList.add('active');
-    startHostMusic();
-  }
-
-  function resetToGate(msg = '') {
-    vaultActive = false;
-    stopHostMusic();
-    vaultFrame.classList.remove('active');
-    vaultFrame.srcdoc = '';
-    signOutBtn.classList.remove('active');
-    gateEl.classList.remove('hidden');
-    hudStatus.style.display = '';
-    hudMeta.style.display = '';
-    hudStatus.textContent = '• status = locked';
-    if (!bgRunning) {
-      bgRunning = true;
-      bgLast = performance.now();
-      requestAnimationFrame(drawBg);
-    }
-    setBusy(false);
-    if (msg) setStatus(msg, 'error');
-  }
-
-  async function verifyAndLoadVault(user) {
-    if (!user || !user.email) {
-      resetToGate();
-      return;
-    }
-
-    const emailLower = user.email.trim().toLowerCase();
-    if (!ALLOWED_EMAILS.some((e) => e.trim().toLowerCase() === emailLower)) {
-      await auth.signOut();
-      resetToGate('此 Google 帳號無權存取此頁面，請切換為授權帳號。');
-      return;
-    }
-
-    hudStatus.textContent = '• status = verifying';
-    setStatus('驗證通過，正在載入內容...', 'ok');
-
-    try {
-      const snap = await db.collection(VAULT_COLLECTION).doc(VAULT_DOC_ID).get();
-      if (!snap.exists || !snap.data() || !snap.data()[VAULT_HTML_FIELD]) {
-        await auth.signOut();
-        resetToGate('找不到受保護的內容文件，請確認 Firestore 設定。');
-        return;
-      }
-      showProtectedHtml(String(snap.data()[VAULT_HTML_FIELD]));
-    } catch (err) {
-      await auth.signOut();
-      const code = err && err.code ? err.code : '';
-      if (code === 'permission-denied') {
-        resetToGate('Firestore 權限規則拒絕讀取，請確認已發布最新的 firestore.rules。');
-      } else {
-        resetToGate(`讀取失敗（${code || 'unknown'}），請確認 Firestore 資料庫已建立。`);
-      }
-    }
-  }
-
-  if (auth) {
-    auth.getRedirectResult().catch(() => {});
-    auth.onAuthStateChanged((user) => {
-      if (user) {
-        verifyAndLoadVault(user);
-      }
-    });
-  }
-
-  googleSignInBtn.addEventListener('click', async () => {
-    // Synchronously unlock Web Audio on user tap before async OAuth popup/redirect
-    unlockHostAudio();
-    if (window.location.protocol === 'file:') {
-      setStatus('請透過 GitHub Pages（https://）開啟網頁，本機 file:// 無法執行 Google 驗證。', 'error');
-      return;
-    }
-    if (!isConfigured || !auth || !db || !googleProvider) {
-      setStatus('Firebase SDK 載入失敗，請檢查網路連線或重新整理。', 'error');
-      return;
-    }
-
-    setBusy(true);
-    setStatus('正在開啟 Google 驗證視窗...', '');
-
-    try {
-      const cred = await auth.signInWithPopup(googleProvider);
-      await verifyAndLoadVault(cred.user);
-    } catch (err) {
-      const code = err && err.code ? err.code : '';
-      if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
-        try {
-          setStatus('正在跳轉至 Google 驗證頁面...', '');
-          await auth.signInWithRedirect(googleProvider);
-          return;
-        } catch (_) {}
-      }
-      setBusy(false);
-      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
-        setStatus('已取消登入。', '');
-      } else if (code === 'auth/unauthorized-domain') {
-        setStatus(`尚未授權此網域（${window.location.hostname}），請到 Firebase Authentication → Settings → Authorized domains 新增。`, 'error');
-      } else if (code === 'auth/operation-not-allowed') {
-        setStatus('Firebase 尚未啟用 Google 登入，請到 Authentication → Sign-in method 開啟 Google。', 'error');
-      } else {
-        setStatus(`Google 驗證失敗（${code || 'unknown'}），請確認 Firebase 設定。`, 'error');
-      }
-    }
-  });
-
-  signOutBtn.addEventListener('click', async () => {
-    if (auth) {
-      try {
-        await auth.signOut();
-      } catch (_) {}
-    }
-    setStatus('已登出。', '');
-    resetToGate();
-  });
+'use strict';
+// =========================================================================
+// Constants directly ported from christmas_tree.py
+// =========================================================================
+const COLS = 66;
+const ROWS = 74;
+const CW = 12;
+const CH = 14;
+const FONT_PX = 14;
+const CJK_PX = 11.5;
+const HUD_PX = 13;
+const CANVAS_W = COLS * CW; // 792
+const CANVAS_H = ROWS * CH; // 1036
+const ASPECT = CW / CH;
+const TAU = Math.PI * 2;
+const GROUND = -1.48;
+const Y0 = -0.86;
+const Y1 = 1.34;
+// Timeline (seconds) matching the video sequence
+const T_GROW    = [1.0, 5.4];
+const T_GARLAND = [5.4, 7.6];
+const T_BALLS   = [7.6, 8.9];
+const T_LIGHTS  = [8.2, 11.2];
+const T_GIFTS   = [9.8, 12.2];
+const T_STAR    = 12.2;
+const T_MSG     = 13.1;
+const MESSAGE = 'M E R R Y   C H R I S T M A S   2 0 2 6';
+// Repeating Chinese greeting characters replacing the ASCII tree glyphs
+const REPEAT_TEXT = '祝家祺聖誕快樂';
+const REPEAT_LEN = REPEAT_TEXT.length;
+function repeatCharCode(row, col) {
+return REPEAT_TEXT.charCodeAt((col + row) % REPEAT_LEN);
+}
+// Colors (0..1 RGB) matching christmas_tree.py
+const WHITE       = [0.95, 0.98, 1.00];
+const GOLD        = [1.00, 0.84, 0.30];
+const BAUBLE_GOLD = [1.00, 0.80, 0.25];
+const SILVER      = [0.88, 0.92, 0.98];
+const RED         = [0.98, 0.16, 0.18];
+const BLUE        = [0.18, 0.46, 1.00];
+const GREEN_BOX   = [0.18, 0.82, 0.36];
+const WARM        = [1.00, 0.88, 0.50];
+const TRUNK_COL   = [0.64, 0.37, 0.18];
+const HUD_DIM    = 'rgb(96, 104, 122)';
+const HUD_ACCENT = 'rgb(255, 196, 90)';
+const HUD_SIGN   = 'rgb(176, 168, 196)';
+// Particle types
+const PT_NEEDLE = 0;
+const PT_SNOW   = 1;
+const PT_TRUNK  = 2;
+const PT_TINSEL = 3;
+const PT_BALL   = 4;
+const PT_LIGHT  = 5;
+const PT_GIFT   = 6;
+const PT_GROUND = 7;
+// =========================================================================
+// Deterministic PRNG (Mulberry32, seeded to 7 like np.random.default_rng(7))
+// =========================================================================
+function createRng(seed) {
+let a = seed >>> 0;
+function next() {
+a |= 0;
+a = (a + 0x6d2b79f5) | 0;
+let t = Math.imul(a ^ (a >>> 15), 1 | a);
+t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+let spare = null;
+return {
+random: next,
+uniform(lo, hi) {
+return lo + (hi - lo) * next();
+},
+normal(mean = 0, std = 1) {
+if (spare !== null) {
+const v = spare;
+spare = null;
+return mean + std * v;
+}
+let u = 0, v = 0;
+while (u === 0) u = next();
+while (v === 0) v = next();
+const mag = Math.sqrt(-2.0 * Math.log(u));
+spare = mag * Math.sin(TAU * v);
+return mean + std * (mag * Math.cos(TAU * v));
+}
+};
+}
+function clip(v, lo, hi) {
+return v < lo ? lo : v > hi ? hi : v;
+}
+function smoothstep(x) {
+const t = clip(x, 0, 1);
+return t * t * (3 - 2 * t);
+}
+function envelope(y) {
+const u = clip((y - Y0) / (Y1 - Y0), 0, 1);
+return 0.96 * Math.pow(1 - u, 0.92);
+}
+function growTime(y) {
+const f = clip((y - GROUND) / (Y1 - GROUND), 0, 1);
+return f * 2.2;
+}
+function fibSphere(n) {
+const pts = [];
+const golden = Math.PI * (3 - Math.sqrt(5));
+for (let i = 0; i < n; i++) {
+const y = 1 - (i / (n - 1)) * 2;
+const r = Math.sqrt(Math.max(0, 1 - y * y));
+const theta = golden * i;
+pts.push([Math.cos(theta) * r, y, Math.sin(theta) * r]);
+}
+return pts;
+}
+// =========================================================================
+// Particle storage (Structure of Arrays for fast projection)
+// =========================================================================
+class Parts {
+constructor(cap) {
+this.cap = cap;
+this.len = 0;
+this.x     = new Float32Array(cap);
+this.y     = new Float32Array(cap);
+this.z     = new Float32Array(cap);
+this.nx    = new Float32Array(cap);
+this.ny    = new Float32Array(cap);
+this.nz    = new Float32Array(cap);
+this.r     = new Float32Array(cap);
+this.g     = new Float32Array(cap);
+this.b     = new Float32Array(cap);
+this.type  = new Uint8Array(cap);
+this.t0    = new Float32Array(cap);
+this.base  = new Float32Array(cap);
+this.phase = new Float32Array(cap);
+this.cx    = new Float32Array(cap);
+this.cy    = new Float32Array(cap);
+this.cz    = new Float32Array(cap);
+this.pop   = new Uint8Array(cap);
+this.tier  = new Uint8Array(cap);
+}
+push(x, y, z, nx, ny, nz, r, g, b, type, t0, base = 1.0, phase = 0.0, cx = 0, cy = 0, cz = 0, pop = 0, tier = 0) {
+const i = this.len;
+if (i >= this.cap) return;
+this.x[i] = x; this.y[i] = y; this.z[i] = z;
+const nlen = Math.hypot(nx, ny, nz) || 1;
+this.nx[i] = nx / nlen; this.ny[i] = ny / nlen; this.nz[i] = nz / nlen;
+this.r[i] = r; this.g[i] = g; this.b[i] = b;
+this.type[i] = type;
+this.t0[i] = t0;
+this.base[i] = base;
+this.phase[i] = phase;
+this.cx[i] = cx; this.cy[i] = cy; this.cz[i] = cz;
+this.pop[i] = pop;
+this.tier[i] = tier;
+this.len = i + 1;
+}
+}
+// =========================================================================
+// Build the 3D scene faithfully following christmas_tree.py
+// =========================================================================
+function buildScene() {
+const rng = createRng(7);
+const q = new Parts(85000);
+const tips = [];
+const lightStartTimes = [];
+// 1. Needles: 24 whorls of drooping branches, denser & longer at the bottom
+const WHORLS = 24;
+for (let i = 0; i < WHORLS; i++) {
+const y = (Y0 + 0.02) + ((Y1 - 0.06) - (Y0 + 0.02)) * (i / (WHORLS - 1));
+const u = (y - Y0) / (Y1 - Y0);
+const R = envelope(y) + 0.05;
+const nb = Math.floor(6 + 12 * (1 - u));
+for (let b = 0; b < nb; b++) {
+const a = TAU * (b + 0.5 * rng.random()) / nb + i * 0.77;
+const L = R * rng.uniform(0.85, 1.08);
+const n = Math.floor(25 + 240 * L);
+const dx = Math.cos(a), dz = Math.sin(a);
+const sx = -Math.sin(a), sz = Math.cos(a);
+for (let k = 0; k < n; k++) {
+const s = Math.pow(rng.random(), 0.65); // 0 trunk .. 1 tip
+const spread = (0.025 + 0.09 * s) * rng.normal(0, 1);
+const s1 = s * L;
+const px = dx * s1 + sx * spread;
+const pz = dz * s1 + sz * spread;
+const py = y + 0.06 * s1 - 0.20 * s1 * s1 + 0.012 * rng.normal(0, 1);
+const nrmX = dx * 0.75 + 0.3 * rng.normal(0, 1);
+const nrmY = 0.55 + 0.3 * rng.normal(0, 1);
+const nrmZ = dz * 0.75 + 0.3 * rng.normal(0, 1);
+const nlen = Math.hypot(nrmX, nrmY, nrmZ) || 1;
+const nyUnit = nrmY / nlen;
+const ao = (0.35 + 0.70 * Math.pow(s, 1.25)) * rng.uniform(0.78, 1.12);
+const isSnow = (s > 0.5) && (rng.random() < 0.06 * s) && (nyUnit > 0.5);
+let cr, cg, cb, ptype, pbase;
+if (isSnow) {
+cr = WHITE[0]; cg = WHITE[1]; cb = WHITE[2];
+ptype = PT_SNOW;
+pbase = 1.05;
+} else {
+const gRand = rng.random();
+cr = 0.10 + 0.14 * gRand;
+cg = 0.50 + 0.42 * gRand;
+cb = 0.18 + 0.16 * gRand;
+ptype = PT_NEEDLE;
+pbase = ao;
+}
+q.push(px, py, pz, nrmX, nrmY, nrmZ, cr, cg, cb, ptype, growTime(y) + 0.45 * s, pbase);
+}
+const tl = 0.93 * L;
+tips.push([dx * tl, y + 0.06 * tl - 0.20 * tl * tl, dz * tl]);
+}
+}
+// 2. Dark inner cone so nothing shows through the branches
+const mCone = 6000;
+for (let i = 0; i < mCone; i++) {
+const y = Y0 + (Y1 - 0.1 - Y0) * rng.random();
+const phi = rng.random() * TAU;
+const r = 0.65 * envelope(y);
+const px = Math.cos(phi) * r;
+const pz = Math.sin(phi) * r;
+q.push(px, y, pz, Math.cos(phi), 0.3, Math.sin(phi), 0.10, 0.44, 0.16, PT_NEEDLE, growTime(y), 0.75);
+}
+// 3. Trunk (taller & fuller warm brown bark)
+const mTrunk = 2600;
+for (let i = 0; i < mTrunk; i++) {
+const y = GROUND + rng.random() * (Y0 + 0.14 - GROUND);
+const phi = rng.random() * TAU;
+const nx = Math.cos(phi), nz = Math.sin(phi);
+const bark = 0.78 + 0.22 * Math.sign(Math.sin(phi * 26 + y * 5) || 1);
+const rad = 0.135;
+q.push(
+nx * rad, y, nz * rad,
+nx, 0, nz,
+TRUNK_COL[0] * bark, TRUNK_COL[1] * bark, TRUNK_COL[2] * bark,
+PT_TRUNK, growTime(y), 1.05
+);
+}
+// 4. Tinsel garland: 3 circles (lower gold, middle crimson-gold, upper champagne shimmer)
+const tinselSteps = 2400;
+const turns = 4.5;
+for (let strand = 0; strand < 4; strand++) {
+for (let i = 0; i < tinselSteps; i++) {
+const u = i / (tinselSteps - 1);
+const tier = Math.min(2, Math.floor(u * 3));
+const localU = (u * 3) - tier;
+const yg = Y0 + 0.12 + (Y1 - Y0 - 0.40) * u;
+const ag = TAU * turns * u + 0.9;
+const swag = -0.07 * Math.abs(Math.sin(ag * 2.5));
+const rg = envelope(yg) + 0.075;
+const jitter = 0.016;
+const px = Math.cos(ag) * rg + jitter * rng.normal(0, 1);
+const py = yg + swag + jitter * rng.normal(0, 1);
+const pz = Math.sin(ag) * rg + jitter * rng.normal(0, 1);
+const nx = Math.cos(ag) + 0.6 * rng.normal(0, 1);
+const ny = 0.3 + 0.6 * rng.normal(0, 1);
+const nz = Math.sin(ag) + 0.6 * rng.normal(0, 1);
+const col = (tier === 1 && strand % 2 === 1) ? RED : (tier === 2 && strand % 2 === 1 ? WARM : GOLD);
+const t0 = localU * 0.95;
+q.push(px, py, pz, nx, ny, nz, col[0], col[1], col[2], PT_TINSEL, t0, 1.0, rng.random() * TAU, 0, 0, 0, 0, tier);
+}
+}
+// 5. Baubles: 34 spheres (mostly red, some gold and silver)
+const baubleSphere = fibSphere(110);
+for (let k = 0; k < 34; k++) {
+const u = (k + rng.random()) / 34;
+const y = Y0 + 0.08 + u * (Y1 - Y0 - 0.38);
+const a = k * 2.39996 + rng.random() * 0.4;
+const env = envelope(y);
+const cx = Math.cos(a) * env;
+const cy = y - 0.03;
+const cz = Math.sin(a) * env;
+const rad = 0.058 + 0.032 * (1 - u);
+const col = (k % 2 === 0) ? RED : (k % 5 === 1 ? SILVER : BAUBLE_GOLD);
+const tier = Math.min(2, Math.floor(u * 3));
+const t0 = 0.35 + rng.random() * 0.65;
+for (let j = 0; j < baubleSphere.length; j++) {
+const s = baubleSphere[j];
+q.push(
+cx + s[0] * rad, cy + s[1] * rad, cz + s[2] * rad,
+s[0], s[1], s[2],
+col[0], col[1], col[2],
+PT_BALL, t0, 1.0, 0.0, cx, cy, cz, 1, tier
+);
+}
+}
+// 6. Fairy lights on branch tips (170 lights)
+const tipIndices = tips.map((_, idx) => idx);
+for (let i = tipIndices.length - 1; i > 0; i--) {
+const j = Math.floor(rng.random() * (i + 1));
+const tmp = tipIndices[i]; tipIndices[i] = tipIndices[j]; tipIndices[j] = tmp;
+}
+const numLights = Math.min(170, tips.length);
+const bulbSphere = fibSphere(16);
+for (let i = 0; i < numLights; i++) {
+const tip = tips[tipIndices[i]];
+const tier = i % 3;
+const t0 = 0.2 + rng.random() * 0.85;
+lightStartTimes.push({ tier, t0 });
+const col = rng.random() < 0.8 ? WARM : [1.0, 0.96, 0.88];
+const ph = rng.random() * TAU;
+for (let j = 0; j < bulbSphere.length; j++) {
+const b = bulbSphere[j];
+q.push(
+tip[0] + b[0] * 0.032, tip[1] + b[1] * 0.032, tip[2] + b[2] * 0.032,
+b[0], b[1], b[2],
+col[0], col[1], col[2],
+PT_LIGHT, t0, 1.0, ph, tip[0], tip[1], tip[2], 0, tier
+);
+}
+}
+// 7. Presents: 5 boxes with crossed ribbons and a bow (placed one by one via fist->open)
+const gifts = [
+[0.25, 1.12, 0.32, 0.25, 0.28, 0.4, RED,       GOLD],
+[1.50, 1.16, 0.28, 0.31, 0.25, 1.1, BLUE,      GOLD],
+[2.76, 1.12, 0.34, 0.20, 0.27, 0.9, GOLD,      RED],
+[4.02, 1.16, 0.26, 0.27, 0.27, 0.3, RED,       WHITE],
+[5.28, 1.13, 0.31, 0.23, 0.30, 0.2, GREEN_BOX, RED]
+];
+const loopSphere = fibSphere(64);
+const faceNormals = [
+[0, 1, 0],
+[1, 0, 0],
+[-1, 0, 0],
+[0, 0, 1],
+[0, 0, -1]
+];
+for (let gIdx = 0; gIdx < gifts.length; gIdx++) {
+const [a, dist, w, h, d, rot, bodyCol, ribCol] = gifts[gIdx];
+const gx = Math.cos(a) * dist;
+const gz = Math.sin(a) * dist;
+const cosR = Math.cos(rot), sinR = Math.sin(rot);
+const t0 = 0.0;
+const areas = [w * d, h * d, h * d, h * w, h * w];
+const totalArea = areas.reduce((acc, v) => acc + v, 0);
+const cdf = [];
+let sumA = 0;
+for (let f = 0; f < 5; f++) {
+sumA += areas[f] / totalArea;
+cdf.push(sumA);
+}
+const mGift = Math.floor(4200 * totalArea);
+for (let k = 0; k < mGift; k++) {
+const rf = rng.random();
+let face = 4;
+for (let f = 0; f < 5; f++) {
+if (rf <= cdf[f]) { face = f; break; }
+}
+const fa = rng.random() - 0.5;
+const fb = rng.random() - 0.5;
+let lx, ly, lz;
+if (face === 0) {
+lx = fa * w; ly = h; lz = fb * d;
+} else if (face === 1) {
+lx = w * 0.5; ly = (fb + 0.5) * h; lz = fa * d;
+} else if (face === 2) {
+lx = -w * 0.5; ly = (fb + 0.5) * h; lz = fa * d;
+} else if (face === 3) {
+lx = fa * w; ly = (fb + 0.5) * h; lz = d * 0.5;
+} else {
+lx = fa * w; ly = (fb + 0.5) * h; lz = -d * 0.5;
+}
+const onX = Math.abs(lx) < 0.025;
+const onZ = Math.abs(lz) < 0.025;
+const isRibbon = (face === 0) ? (onX || onZ) : (face <= 2 ? onZ : onX);
+const col = isRibbon ? ribCol : bodyCol;
+const fn = faceNormals[face];
+const rx = lx * cosR - lz * sinR;
+const rz = lx * sinR + lz * cosR;
+const rnx = fn[0] * cosR - fn[2] * sinR;
+const rnz = fn[0] * sinR + fn[2] * cosR;
+q.push(
+gx + rx, GROUND + ly, gz + rz,
+rnx, fn[1], rnz,
+col[0], col[1], col[2],
+PT_GIFT, t0, 1.0, 0.0, gx, GROUND + h * 0.5, gz, 1, gIdx
+);
+}
+// Bow loops on top of each gift
+for (const sideSign of [-1, 1]) {
+for (let j = 0; j < loopSphere.length; j++) {
+const s = loopSphere[j];
+const lx = s[0] * 0.05 + sideSign * 0.045;
+const ly = s[1] * 0.03 + h + 0.025;
+const lz = s[2] * 0.025;
+const rx = lx * cosR - lz * sinR;
+const rz = lx * sinR + lz * cosR;
+const rnx = s[0] * cosR - s[2] * sinR;
+const rnz = s[0] * sinR + s[2] * cosR;
+q.push(
+gx + rx, GROUND + ly, gz + rz,
+rnx, s[1], rnz,
+ribCol[0], ribCol[1], ribCol[2],
+PT_GIFT, t0, 1.0, 0.0, gx, GROUND + h * 0.5, gz, 1, gIdx
+);
+}
+}
+}
+// 8. Perspective ground dot field (matches the subtle dotted floor in video)
+const groundPts = [];
+for (let row = 28; row < ROWS; row++) {
+const frac = (row - 28) / (ROWS - 28); // 0 horizon .. 1 bottom
+const step = frac < 0.25 ? 2 : (frac < 0.6 ? 2 : 1);
+const bright = 0.22 + 0.34 * frac;
+for (let col = (row % 2); col < COLS; col += step) {
+if (rng.random() < 0.72) {
+const jitter = 0.8 + 0.35 * rng.random();
+groundPts.push({
+row,
+col,
+r: Math.round(95 * bright * jitter),
+g: Math.round(110 * bright * jitter),
+b: Math.round(142 * bright * jitter),
+z: 8.5 - frac * 6.0
+});
+}
+}
+}
+// 9. Falling snow (background & foreground ASCII flakes)
+const snow = [];
+const SNOW_COUNT = 310;
+for (let i = 0; i < SNOW_COUNT; i++) {
+const layer = rng.random(); // 0 far .. 1 near
+snow.push({
+x: rng.random() * COLS,
+y: rng.random() * ROWS,
+vy: 1.5 + layer * 4.4,
+vx: (rng.random() - 0.5) * 0.55,
+phase: rng.random() * TAU,
+amp: 0.4 + rng.random() * 1.1,
+layer,
+ch: layer > 0.72 ? '*' : (layer > 0.36 ? '+' : '.'),
+bright: 0.45 + layer * 0.55
+});
+}
+return { q, snow, groundPts, lightStartTimes };
+}
+// =========================================================================
+// 3D Projection (calibrated to match frame_19.png proportions)
+// =========================================================================
+const CAM_DIST = 4.35;
+const CAM_Y = 0.05;
+const FOCAL = 84.0;
+const CENTER_ROW = ROWS * 0.435;
+function projectPoint(x, y, z, out) {
+const dz = CAM_DIST - z;
+if (dz <= 0.25) return false;
+const invZ = FOCAL / dz;
+out[0] = COLS * 0.5 + x * invZ;
+out[1] = CENTER_ROW - (y - CAM_Y) * invZ * ASPECT;
+out[2] = dz;
+return true;
+}
+// =========================================================================
+// 5-pointed star polygon & 8-ray burst (exact port of lines 359-424)
+// =========================================================================
+function pointInPoly(px, py, poly) {
+let inside = false;
+for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+const x1 = poly[i][0], y1 = poly[i][1];
+const x2 = poly[j][0], y2 = poly[j][1];
+const intersect = ((y1 > py) !== (y2 > py)) &&
+(px < (x2 - x1) * (py - y1) / (y2 - y1 + 1e-9) + x1);
+if (intersect) inside = !inside;
+}
+return inside;
+}
+function makeStarPoly(cx, cy, rOuter, rInner, aspect) {
+const pts = [];
+for (let i = 0; i < 10; i++) {
+const ang = -Math.PI / 2 + i * (Math.PI / 5);
+const rad = (i % 2 === 0) ? rOuter : rInner;
+pts.push([
+cx + Math.cos(ang) * rad / aspect,
+cy + Math.sin(ang) * rad
+]);
+}
+return pts;
+}
+// =========================================================================
+// Framebuffer (88 x 74 ASCII cells)
+// =========================================================================
+const TOTAL_CELLS = COLS * ROWS;
+const charBuf = new Uint16Array(TOTAL_CELLS);
+const rBuf    = new Uint8Array(TOTAL_CELLS);
+const gBuf    = new Uint8Array(TOTAL_CELLS);
+const bBuf    = new Uint8Array(TOTAL_CELLS);
+const zBuf    = new Float32Array(TOTAL_CELLS);
+function putCell(row, col, chCode, tint, intensity) {
+if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return;
+const idx = row * COLS + col;
+charBuf[idx] = chCode;
+rBuf[idx] = clip(Math.round(tint[0] * intensity * 255), 0, 255);
+gBuf[idx] = clip(Math.round(tint[1] * intensity * 255), 0, 255);
+bBuf[idx] = clip(Math.round(tint[2] * intensity * 255), 0, 255);
+}
+function drawStar(cx, cy, size, t, power, flash) {
+const tint = [
+GOLD[0] + (1 - GOLD[0]) * flash,
+GOLD[1] + (1 - GOLD[1]) * flash,
+GOLD[2] + (1 - GOLD[2]) * flash
+];
+const pwr = power * (1 + 1.6 * flash);
+const rayChars = ['-', '|', '/', '\'];
+const rayIdxMap = [0, 2, 1, 3];
+// 8 rays (no rays pointing down into the tree)
+for (let k = 0; k < 8; k++) {
+const ang = k * TAU / 8 - 0.10 * Math.sin(t * 0.7);
+if (Math.sin(ang) < -0.3) continue;
+const reach = size * (2.6 + 0.7 * Math.sin(t * 3 + k * 1.3)) * (k % 2 === 0 ? 1.0 : 0.55);
+const deg = ((ang * 180 / Math.PI) % 180 + 180) % 180;
+const ch = rayChars[rayIdxMap[Math.round(deg / 45) % 4]].charCodeAt(0);
+for (let s = size * 1.0; s < reach; s += 0.5) {
+const y = Math.round(cy - Math.sin(ang) * s);
+const x = Math.round(cx + Math.cos(ang) * s / ASPECT);
+if (y >= 0 && y < ROWS && x >= 0 && x < COLS) {
+const idx = y * COLS + x;
+const fade = Math.max(0, 1 - s / reach);
+const lum = pwr * 0.75 * fade;
+const r = clip(Math.round(tint[0] * lum * 255), 0, 255);
+const g = clip(Math.round(tint[1] * lum * 255), 0, 255);
+const b = clip(Math.round(tint[2] * lum * 255), 0, 255);
+if (Math.max(r, g, b) > Math.max(rBuf[idx], gBuf[idx], bBuf[idx])) {
+charBuf[idx] = ch;
+rBuf[idx] = r; gBuf[idx] = g; bBuf[idx] = b;
+}
+}
+}
+}
+// Filled 5-pointed star polygon on top
+const poly = makeStarPoly(cx, cy, size * 1.15, size * 0.48, ASPECT);
+const minY = Math.max(0, Math.floor(cy - size * 1.4));
+const maxY = Math.min(ROWS - 1, Math.ceil(cy + size * 1.4));
+const minX = Math.max(0, Math.floor(cx - size * 2.4));
+const maxX = Math.min(COLS - 1, Math.ceil(cx + size * 2.4));
+for (let ry = minY; ry <= maxY; ry++) {
+for (let rx = minX; rx <= maxX; rx++) {
+if (pointInPoly(rx, ry, poly)) {
+const d = Math.hypot((rx - cx) * ASPECT, ry - cy) / (size * 1.15);
+const ch = repeatCharCode(ry, rx);
+const glow = clip(pwr * (1.2 - 0.3 * d), 0.55, 1.35);
+putCell(ry, rx, ch, tint, glow);
+}
+}
+}
+}
+// =========================================================================
+// Scene & Canvas Setup
+// =========================================================================
+const scene = buildScene();
+const canvas = document.getElementById('stage');
+const ctx = canvas.getContext('2d', { alpha: false });
+const dpr = Math.min(window.devicePixelRatio || 1, 2);
+canvas.width = CANVAS_W * dpr;
+canvas.height = CANVAS_H * dpr;
+ctx.scale(dpr, dpr);
+function fitCanvas() {
+const vw = window.innerWidth;
+const vh = window.innerHeight;
+const scale = Math.min(vw / CANVAS_W, vh / CANVAS_H);
+canvas.style.width = Math.floor(CANVAS_W * scale) + 'px';
+canvas.style.height = Math.floor(CANVAS_H * scale) + 'px';
+}
+fitCanvas();
+window.addEventListener('resize', fitCanvas);
+const MONO_FONT = ⁠${FONT_PX}px Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, &quot;Courier New&quot;, monospace⁠;
+const CJK_FONT  = ⁠600 ${CJK_PX}px &quot;Noto Sans TC&quot;, &quot;PingFang TC&quot;, &quot;Microsoft JhengHei&quot;, &quot;Heiti TC&quot;, sans-serif⁠;
+const HUD_FONT  = ⁠${HUD_PX}px Consolas, Menlo, &quot;DejaVu Sans Mono&quot;, &quot;Courier New&quot;, monospace⁠;
+// Light direction (front-right-top)
+const LX = 0.45, LY = 0.52, LZ = 0.72;
+// =========================================================================
+// Main Render Function for time t (seconds)
+// =========================================================================
+// =========================================================================
+// Interactive 4-Step Gesture State
+// =========================================================================
+const TOTAL_GARLAND_CIRCLES = 3;
+const TOTAL_GIFTS = 5;
+const stageState = {
+step: 0, // 0=modal, 1=swipe up tree, 2=circles garland (3x), 3=swipe down star, 4=fist->open gifts (5x), 5=done
+treeStart: Infinity,
+garlandCount: 0,
+garlandTimes: [Infinity, Infinity, Infinity],
+starStart: Infinity,
+giftCount: 0,
+giftTimes: [Infinity, Infinity, Infinity, Infinity, Infinity],
+msgStart: Infinity
+};
+const projTmp = [0, 0, 0];
+function renderFrame(t) {
+charBuf.fill(0);
+rBuf.fill(0);
+gBuf.fill(0);
+bBuf.fill(0);
+zBuf.fill(1e9);
+// 1. Dotted perspective ground field
+const gpts = scene.groundPts;
+for (let i = 0; i < gpts.length; i++) {
+const gp = gpts[i];
+const idx = gp.row * COLS + gp.col;
+charBuf[idx] = 46; // '.'
+rBuf[idx] = gp.r;
+gBuf[idx] = gp.g;
+bBuf[idx] = gp.b;
+zBuf[idx] = 90.0;
+}
+// 2. Falling snow (background layer)
+const snow = scene.snow;
+for (let i = 0; i < snow.length; i++) {
+const f = snow[i];
+if (f.layer > 0.72) continue;
+const sx = ((f.x + f.vx * t + Math.sin(t * 0.9 + f.phase) * f.amp) % COLS + COLS) % COLS;
+const sy = (f.y + f.vy * t) % ROWS;
+const col = Math.floor(sx);
+const row = Math.floor(sy);
+const idx = row * COLS + col;
+const br = f.bright * (0.8 + 0.2 * Math.sin(t * 2.5 + f.phase));
+charBuf[idx] = f.ch.charCodeAt(0);
+rBuf[idx] = Math.round(195 * br);
+gBuf[idx] = Math.round(210 * br);
+bBuf[idx] = Math.round(235 * br);
+zBuf[idx] = 85.0;
+}
+// 3. 3D Scene Rotation (matches ~17.57 deg/sec from video)
+const rotRad = t * (17.57 * Math.PI / 180);
+const cosA = Math.cos(rotRad);
+const sinA = Math.sin(rotRad);
+const q = scene.q;
+const len = q.len;
+for (let i = 0; i < len; i++) {
+const ptype = q.type[i];
+let baseStart = Infinity;
+if (ptype === PT_NEEDLE || ptype === PT_SNOW || ptype === PT_TRUNK) {
+baseStart = stageState.treeStart;
+} else if (ptype === PT_TINSEL || ptype === PT_BALL || ptype === PT_LIGHT) {
+baseStart = stageState.garlandTimes[q.tier[i]];
+} else if (ptype === PT_GIFT) {
+baseStart = stageState.giftTimes[q.tier[i]];
+}
+const appearAt = baseStart + q.t0[i];
+if (t < appearAt) continue;
+const dt = t - appearAt;
+let px = q.x[i], py = q.y[i], pz = q.z[i];
+// Pop-in scale for baubles and gifts
+if (q.pop[i] && dt < 0.35) {
+const sc = smoothstep(dt / 0.35);
+px = q.cx[i] + (px - q.cx[i]) * sc;
+py = q.cy[i] + (py - q.cy[i]) * sc;
+pz = q.cz[i] + (pz - q.cz[i]) * sc;
+}
+const rx = px * cosA - pz * sinA;
+const rz = px * sinA + pz * cosA;
+const rnx = q.nx[i] * cosA - q.nz[i] * sinA;
+const rnz = q.nx[i] * sinA + q.nz[i] * cosA;
+const dz = CAM_DIST - rz;
+if (dz <= 0.3) continue;
+const invZ = FOCAL / dz;
+const col = Math.round(COLS * 0.5 + rx * invZ);
+const row = Math.round(CENTER_ROW - (py - CAM_Y) * invZ * ASPECT);
+if (col < 0 || col >= COLS || row < 0 || row >= ROWS) continue;
+const idx = row * COLS + col;
+if (dz >= zBuf[idx]) continue;
+// Lighting & shading
+const rny = q.ny[i];
+const ndl = Math.max(0, rnx * LX + rny * LY + rnz * LZ);
+let lum = (0.36 + 0.78 * ndl) * q.base[i];
+let cr = q.r[i], cg = q.g[i], cb = q.b[i];
+if (ptype === PT_BALL) {
+const spec = Math.pow(Math.max(0, rnx * 0.35 + rny * 0.55 + rnz * 0.76), 9);
+lum += spec * 0.7;
+} else if (ptype === PT_TINSEL) {
+const shimmer = 0.72 + 0.50 * Math.sin(t * 6.0 + q.phase[i]);
+lum = (0.55 + 0.65 * ndl) * shimmer;
+} else if (ptype === PT_LIGHT) {
+const tw = 0.55 + 0.65 * (0.5 + 0.5 * Math.sin(t * 4.8 + q.phase[i]));
+lum = tw * 1.25;
+} else if (ptype === PT_GIFT) {
+lum = 0.42 + 0.72 * ndl;
+}
+// Growing wavefront white flash
+let birthFlash = 0;
+if (ptype === PT_NEEDLE || ptype === PT_SNOW || ptype === PT_TRUNK) {
+if (dt < 0.28) birthFlash = Math.pow(1 - dt / 0.28, 1.6);
+} else if (ptype === PT_TINSEL) {
+if (dt < 0.22) birthFlash = Math.pow(1 - dt / 0.22, 1.4);
+}
+if (birthFlash > 0) {
+cr = cr + (1 - cr) * birthFlash;
+cg = cg + (1 - cg) * birthFlash;
+cb = cb + (1 - cb) * birthFlash;
+lum = Math.max(lum, 0.92 + 0.35 * birthFlash);
+}
+zBuf[idx] = dz;
+charBuf[idx] = repeatCharCode(row, col);
+const scaleCol = clip(0.48 + 0.85 * lum, 0, 1.35);
+rBuf[idx] = clip(Math.round(cr * scaleCol * 255), 0, 255);
+gBuf[idx] = clip(Math.round(cg * scaleCol * 255), 0, 255);
+bBuf[idx] = clip(Math.round(cb * scaleCol * 255), 0, 255);
+}
+// 4. Foreground snow flakes
+for (let i = 0; i < snow.length; i++) {
+const f = snow[i];
+if (f.layer <= 0.72) continue;
+const sx = ((f.x + f.vx * t + Math.sin(t * 0.9 + f.phase) * f.amp) % COLS + COLS) % COLS;
+const sy = (f.y + f.vy * t) % ROWS;
+const col = Math.floor(sx);
+const row = Math.floor(sy);
+const idx = row * COLS + col;
+const br = f.bright * (0.82 + 0.18 * Math.sin(t * 3.0 + f.phase));
+charBuf[idx] = f.ch.charCodeAt(0);
+rBuf[idx] = Math.round(235 * br);
+gBuf[idx] = Math.round(242 * br);
+bBuf[idx] = Math.round(255 * br);
+}
+// 5. Star at top of tree (descends smoothly when Step 3 is triggered)
+if (t >= stageState.starStart) {
+const st = t - stageState.starStart;
+const drop = smoothstep(st / 0.75);
+const starY = (Y1 + 1.05) * (1 - drop) + (Y1 + 0.09) * drop;
+const on = smoothstep(st / 0.55);
+const flash = Math.pow(clip(1 - Math.max(0, st - 0.45) / 0.9, 0, 1), 2) * drop;
+if (projectPoint(0, starY, 0, projTmp)) {
+const starSize = 2.0 + 2.2 * on;
+const starPower = 1.05 + 0.08 * Math.sin(t * 4.0);
+drawStar(projTmp[0], projTmp[1], starSize, t, starPower, flash);
+}
+}
+// 6. Typewriter festive message (appears after 5th gift)
+if (t > stageState.msgStart) {
+const row = ROWS - 9;
+const x0 = Math.floor((COLS - MESSAGE.length) / 2);
+const shown = Math.min(MESSAGE.length, Math.floor((t - stageState.msgStart) * 10));
+const cStart = Math.max(x0 - 3, 0);
+const cEnd = Math.min(COLS, x0 + shown + 3);
+for (let ry = row - 1; ry <= row + 1; ry++) {
+for (let rx = cStart; rx < cEnd; rx++) {
+charBuf[ry * COLS + rx] = 0;
+}
+}
+const palette = [RED, GOLD, GREEN_BOX];
+for (let i = 0; i < shown; i++) {
+const ch = MESSAGE[i];
+if (ch !== ' ') {
+const tint = palette[(Math.floor(i / 2) + Math.floor(t * 1.5)) % 3];
+const pulse = 0.85 + 0.25 * Math.sin(t * 5 + i * 0.5);
+putCell(row, x0 + i, ch.charCodeAt(0), tint, pulse);
+}
+}
+}
+// Count active non-space ASCII letters
+let letterCount = 0;
+for (let i = 0; i < TOTAL_CELLS; i++) {
+if (charBuf[i] > 32) letterCount++;
+}
+// Count active fairy lights
+let activeLights = 0;
+const lst = scene.lightStartTimes;
+for (let i = 0; i < lst.length; i++) {
+const item = lst[i];
+if (t >= stageState.garlandTimes[item.tier] + item.t0) activeLights++;
+}
+// =======================================================================
+// Draw ASCII Grid to Canvas
+// =======================================================================
+ctx.fillStyle = '#02060a';
+ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+ctx.textAlign = 'center';
+ctx.textBaseline = 'middle';
+let lastStyle = '';
+let lastFont = '';
+for (let r = 0; r < ROWS; r++) {
+const py = r * CH + CH * 0.52;
+const rowOff = r * COLS;
+for (let c = 0; c < COLS; c++) {
+const idx = rowOff + c;
+const code = charBuf[idx];
+if (code <= 32) continue;
+const font = code > 127 ? CJK_FONT : MONO_FONT;
+if (font !== lastFont) {
+ctx.font = font;
+lastFont = font;
+}
+const rr = rBuf[idx] & 0xfc;
+const gg = gBuf[idx] & 0xfc;
+const bb = bBuf[idx] & 0xfc;
+const style = ⁠rgb(${rr},${gg},${bb})⁠;
+if (style !== lastStyle) {
+ctx.fillStyle = style;
+lastStyle = style;
+}
+ctx.fillText(String.fromCharCode(code), c * CW + CW * 0.5, py);
+}
+}
+// =======================================================================
+// Draw Minimal HUD matching the video
+// =======================================================================
+ctx.font = HUD_FONT;
+ctx.textBaseline = 'top';
+// Top-right: • t = 00.00s
+const timeStr = t.toFixed(2).padStart(5, '0');
+ctx.textAlign = 'right';
+ctx.fillStyle = HUD_ACCENT;
+ctx.fillText(⁠• t = ${timeStr}s⁠, CANVAS_W - 14, 14);
+// Bottom-left telemetry
+const rotDeg = ((rotRad * 180 / Math.PI) % 360).toFixed(2).padStart(6, '0');
+const lettersStr = letterCount.toLocaleString('en-US');
+ctx.textAlign = 'left';
+ctx.fillStyle = HUD_SIGN;
+ctx.fillText('MERRY CHRISTMAS', 14, CANVAS_H - 64);
+ctx.fillStyle = HUD_DIM;
+ctx.fillText(⁠rotation ${rotDeg}°    lights ${activeLights}⁠, 14, CANVAS_H - 42);
+ctx.fillText(⁠letters ${lettersStr}⁠, 14, CANVAS_H - 22);
+}
+// =========================================================================
+// Animation Loop (smooth 30 fps cadence like the video) & Controls
+// =========================================================================
+let simTime = 0;
+let paused = false;
+let lastNow = performance.now();
+let accum = 0;
+const FRAME_STEP = 1 / 30;
+function tick(now) {
+requestAnimationFrame(tick);
+const dt = Math.min((now - lastNow) / 1000, 0.1);
+lastNow = now;
+if (!paused) {
+simTime += dt;
+accum += dt;
+if (accum >= FRAME_STEP * 0.85) {
+accum = 0;
+renderFrame(simTime);
+}
+}
+}
+// Initial render so frame 0 is never blank
+renderFrame(0);
+requestAnimationFrame(tick);
+// Quiet keyboard shortcuts matching christmas_tree.py
+window.addEventListener('keydown', (e) => {
+if (e.code === 'Space') {
+e.preventDefault();
+paused = !paused;
+lastNow = performance.now();
+} else if (e.key === 'r' || e.key === 'R') {
+if (typeof resetGestureExperience === 'function') resetGestureExperience();
+} else if (e.key === 's' || e.key === 'S') {
+const a = document.createElement('a');
+a.download = ⁠ascii-christmas-tree-${simTime.toFixed(1)}s.png⁠;
+a.href = canvas.toDataURL('image/png');
+a.click();
+}
+});
+// =========================================================================
+// Background Music: "We Wish You a Merry Christmas" (Web Audio Music Box)
+// =========================================================================
+const NOTE_FREQ = {
+'G2': 98.00,  'A2': 110.00, 'B2': 123.47, 'C3': 130.81, 'D3': 146.83,
+'E3': 164.81, 'F#3': 185.00,'G3': 196.00, 'A3': 220.00, 'B3': 246.94,
+'C4': 261.63, 'D4': 293.66, 'E4': 329.63, 'F#4': 369.99,'G4': 392.00,
+'A4': 440.00, 'B4': 493.88, 'C5': 523.25, 'D5': 587.33
+};
+// [melodyNote, beats, chordNotes (optional)] in G major, 3/4 time
+const SCORE = [
+['D4', 1.0, ['G3', 'B3']],
+// We wish you a Merry Christmas
+['G4', 1.0, ['G3', 'B3', 'D4']],
+['G4', 0.5, null], ['A4', 0.5, null], ['G4', 0.5, null], ['F#4', 0.5, null],
+['E4', 1.0, ['C3', 'G3', 'C4']],
+['E4', 1.0, null],
+['E4', 1.0, null],
+// We wish you a Merry Christmas
+['A4', 1.0, ['A3', 'C4', 'E4']],
+['A4', 0.5, null], ['B4', 0.5, null], ['A4', 0.5, null], ['G4', 0.5, null],
+['F#4', 1.0, ['D3', 'A3', 'D4']],
+['D4', 1.0, null],
+['D4', 1.0, null],
+// We wish you a Merry Christmas
+['B4', 1.0, ['G3', 'B3', 'D4']],
+['B4', 0.5, null], ['C5', 0.5, null], ['B4', 0.5, null], ['A4', 0.5, null],
+['G4', 1.0, ['E3', 'B3', 'E4']],
+['E4', 1.0, null],
+['D4', 0.5, null], ['D4', 0.5, null],
+// And a Happy New Year!
+['E4', 1.0, ['C3', 'G3', 'C4']],
+['A4', 1.0, ['A2', 'E3', 'A3']],
+['F#4', 1.0, ['D3', 'A3', 'D4']],
+['G4', 2.0, ['G3', 'B3', 'D4']],
+['D4', 1.0, null],
+// Good tidings we bring to you and your kin
+['G4', 1.0, ['G3', 'B3', 'D4']],
+['G4', 1.0, null],
+['G4', 1.0, null],
+['F#4', 2.0, ['D3', 'A3', 'D4']],
+['F#4', 1.0, null],
+['G4', 1.0, ['E3', 'G3', 'B3']],
+['F#4', 1.0, null],
+['E4', 1.0, null],
+['D4', 2.0, ['D3', 'F#3', 'A3']],
+['A4', 1.0, null],
+// Good tidings for Christmas and a Happy New Year
+['B4', 1.0, ['G3', 'B3', 'D4']],
+['A4', 1.0, ['D3', 'F#3', 'A3']],
+['G4', 1.0, ['E3', 'G3', 'B3']],
+['D5', 1.0, ['G3', 'B3', 'D4']],
+['D4', 1.0, null],
+['D4', 0.5, null], ['D4', 0.5, null],
+['E4', 1.0, ['C3', 'G3', 'C4']],
+['A4', 1.0, ['A2', 'E3', 'A3']],
+['F#4', 1.0, ['D3', 'A3', 'D4']],
+['G4', 2.5, ['G3', 'B3', 'D4']],
+[null, 0.5, null]
+];
+const IN_HOST_GATEWAY = (window.parent && window.parent !== window);
+const BEAT_SEC = 60 / 138;
+let audioCtx = null;
+let masterGain = null;
+let bgmTimer = null;
+let scoreIdx = 0;
+let nextNoteTime = 0;
+let musicEnabled = true;
+let musicStarted = false;
+const bgmBtn = document.getElementById('bgmToggle');
+function updateBgmLabel() {
+if (musicEnabled) {
+bgmBtn.textContent = '♪ 音樂：開';
+bgmBtn.classList.remove('muted');
+} else {
+bgmBtn.textContent = '♪ 音樂：關';
+bgmBtn.classList.add('muted');
+}
+}
+function playBellNote(freq, startTime, duration, gainScale = 1.0) {
+if (!audioCtx || !masterGain) return;
+const osc1 = audioCtx.createOscillator();
+const osc2 = audioCtx.createOscillator();
+const g1 = audioCtx.createGain();
+const g2 = audioCtx.createGain();
+osc1.type = 'sine';
+osc1.frequency.setValueAtTime(freq, startTime);
+osc2.type = 'triangle';
+osc2.frequency.setValueAtTime(freq * 2, startTime);
+const peak = 0.16 * gainScale;
+g1.gain.setValueAtTime(0.0001, startTime);
+g1.gain.linearRampToValueAtTime(peak, startTime + 0.012);
+g1.gain.exponentialRampToValueAtTime(0.0001, startTime + Math.max(duration * 1.35, 0.45));
+g2.gain.setValueAtTime(0.0001, startTime);
+g2.gain.linearRampToValueAtTime(peak * 0.22, startTime + 0.008);
+g2.gain.exponentialRampToValueAtTime(0.0001, startTime + Math.max(duration * 0.65, 0.2));
+osc1.connect(g1).connect(masterGain);
+osc2.connect(g2).connect(masterGain);
+const stopAt = startTime + Math.max(duration * 1.4, 0.5);
+osc1.start(startTime);
+osc2.start(startTime);
+osc1.stop(stopAt);
+osc2.stop(stopAt);
+}
+function scheduleMusic() {
+if (!audioCtx || !musicEnabled || audioCtx.state !== 'running') return;
+while (nextNoteTime < audioCtx.currentTime + 0.25) {
+const [note, beats, chord] = SCORE[scoreIdx];
+const dur = beats * BEAT_SEC;
+if (note && NOTE_FREQ[note]) {
+playBellNote(NOTE_FREQ[note], nextNoteTime, dur, 1.0);
+}
+if (chord) {
+for (let i = 0; i < chord.length; i++) {
+const cf = NOTE_FREQ[chord[i]];
+if (cf) playBellNote(cf, nextNoteTime, dur * 2.2, 0.26);
+}
+}
+nextNoteTime += dur;
+scoreIdx = (scoreIdx + 1) % SCORE.length;
+}
+}
+function startAudio(fromGesture = false) {
+if (IN_HOST_GATEWAY) {
+if (fromGesture) {
+try { window.parent.postMessage({ type: 'bgm_unlock' }, '*'); } catch () {}
+}
+updateBgmLabel();
+return;
+}
+// Allow playback even when iPhone physical silent switch is ON (iOS 17+ Safari)
+if (navigator.audioSession) {
+try { navigator.audioSession.type = 'playback'; } catch () {}
+}
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+if (!AudioCtx) return;
+if (!audioCtx) {
+audioCtx = new AudioCtx();
+masterGain = audioCtx.createGain();
+masterGain.gain.value = musicEnabled ? 0.75 : 0.0;
+masterGain.connect(audioCtx.destination);
+audioCtx.onstatechange = () => {
+if (audioCtx.state === 'running') {
+musicStarted = true;
+if (!bgmTimer) {
+nextNoteTime = audioCtx.currentTime + 0.05;
+bgmTimer = setInterval(scheduleMusic, 80);
+}
+scheduleMusic();
+}
+updateBgmLabel();
+};
+}
+// Synchronous 1-sample silent buffer unlock required by iOS WebKit / mobile Safari
+if (fromGesture) {
+try {
+const silentBuf = audioCtx.createBuffer(1, 1, 22050);
+const srcNode = audioCtx.createBufferSource();
+srcNode.buffer = silentBuf;
+srcNode.connect(audioCtx.destination);
+srcNode.start(0);
+} catch (_) {}
+}
+if (audioCtx.state !== 'running') {
+const p = audioCtx.resume();
+if (p && typeof p.then === 'function') {
+p.then(() => {
+if (audioCtx.state === 'running') {
+musicStarted = true;
+nextNoteTime = audioCtx.currentTime + 0.05;
+if (!bgmTimer) bgmTimer = setInterval(scheduleMusic, 80);
+scheduleMusic();
+updateBgmLabel();
+}
+}).catch(() => {});
+}
+} else {
+musicStarted = true;
+if (!bgmTimer) {
+nextNoteTime = audioCtx.currentTime + 0.05;
+bgmTimer = setInterval(scheduleMusic, 80);
+}
+scheduleMusic();
+}
+updateBgmLabel();
+}
+function toggleMusic() {
+if (IN_HOST_GATEWAY) {
+musicEnabled = !musicEnabled;
+try { window.parent.postMessage({ type: 'bgm_toggle', enabled: musicEnabled }, '*'); } catch (_) {}
+updateBgmLabel();
+return;
+}
+if (!audioCtx || audioCtx.state !== 'running') {
+musicEnabled = true;
+startAudio(true);
+if (masterGain && audioCtx) {
+masterGain.gain.setTargetAtTime(0.75, audioCtx.currentTime, 0.03);
+}
+updateBgmLabel();
+return;
+}
+musicEnabled = !musicEnabled;
+if (masterGain && audioCtx) {
+masterGain.gain.setTargetAtTime(musicEnabled ? 0.75 : 0.0, audioCtx.currentTime, 0.03);
+if (musicEnabled) {
+nextNoteTime = audioCtx.currentTime + 0.05;
+scheduleMusic();
+}
+}
+updateBgmLabel();
+}
+bgmBtn.addEventListener('click', (e) => {
+e.stopPropagation();
+toggleMusic();
+});
+// Attempt auto-start; on mobile browsers that block autoplay until a gesture,
+// unlock synchronously on the very first touch or click anywhere.
+startAudio(false);
+updateBgmLabel();
+function unlockOnGesture() {
+if (IN_HOST_GATEWAY) {
+if (musicEnabled) {
+try { window.parent.postMessage({ type: 'bgm_unlock' }, '*'); } catch (_) {}
+}
+return;
+}
+if (musicEnabled && (!audioCtx || audioCtx.state !== 'running')) {
+startAudio(true);
+}
+}
+window.addEventListener('touchend', unlockOnGesture, { capture: true });
+window.addEventListener('pointerdown', unlockOnGesture, { capture: true });
+window.addEventListener('click', unlockOnGesture, { capture: true });
+window.addEventListener('keydown', (e) => {
+unlockOnGesture();
+if (e.key === 'm' || e.key === 'M') {
+toggleMusic();
+}
+});
+canvas.addEventListener('pointerdown', () => {
+if (!musicStarted && musicEnabled) startAudio(true);
+});
+// =========================================================================
+// MediaPipe Hand Landmarker + 4-Step Gesture Controller
+// =========================================================================
+const camModal = document.getElementById('camModal');
+const enableCamBtn = document.getElementById('enableCamBtn');
+const skipCamBtn = document.getElementById('skipCamBtn');
+const camError = document.getElementById('camError');
+const gestureHud = document.getElementById('gestureHud');
+const hudStepTag = document.getElementById('hudStepTag');
+const hudPrompt = document.getElementById('hudPrompt');
+const hudSub = document.getElementById('hudSub');
+const camPreviewWrap = document.getElementById('camPreviewWrap');
+const camVideo = document.getElementById('camVideo');
+const camDot = document.getElementById('camDot');
+const camDotText = document.getElementById('camDotText');
+const gestureActions = document.getElementById('gestureActions');
+const manualStepBtn = document.getElementById('manualStepBtn');
+const replayGestureBtn = document.getElementById('replayGestureBtn');
+const fxCanvas = document.getElementById('fxOverlay');
+const fxCtx = fxCanvas.getContext('2d');
+let fxW = 0, fxH = 0;
+function fitFxCanvas() {
+const ratio = Math.min(window.devicePixelRatio || 1, 2);
+fxW = window.innerWidth;
+fxH = window.innerHeight;
+fxCanvas.width = Math.floor(fxW * ratio);
+fxCanvas.height = Math.floor(fxH * ratio);
+fxCtx.setTransform(ratio, 0, 0, ratio, 0, 0);
+}
+fitFxCanvas();
+window.addEventListener('resize', fitFxCanvas);
+let handLandmarker = null;
+let cameraActive = false;
+let lastVideoTime = -1;
+let cooldownUntil = 0;
+let trail = [];      // [{ t, x, y }] normalized mirrored coords
+let fxParticles = []; // celebratory golden sparks on trigger
+let sawFist = false;
+let currentHandPt = null;
+function spawnSparkBurst(normX = 0.5, normY = 0.5, count = 26) {
+const cx = normX * fxW;
+const cy = normY * fxH;
+for (let i = 0; i < count; i++) {
+const ang = Math.random() * TAU;
+const spd = 2.2 + Math.random() * 5.8;
+fxParticles.push({
+x: cx,
+y: cy,
+vx: Math.cos(ang) * spd,
+vy: Math.sin(ang) * spd - 1.2,
+life: 1.0,
+r: 2 + Math.random() * 3.5,
+gold: Math.random() < 0.75
+});
+}
+}
+function updateHud() {
+if (stageState.step === 0) return;
+gestureHud.classList.add('active');
+gestureActions.classList.add('active');
+if (stageState.step === 1) {
+hudStepTag.textContent = '1 / 4';
+hudPrompt.textContent = '單手向上滑動，立起聖誕樹';
+hudSub.textContent = cameraActive ? '把張開的手從畫面下方往上方揮動' : '點擊右下角按鈕即可立起聖誕樹';
+manualStepBtn.textContent = '手動：立起聖誕樹';
+manualStepBtn.style.display = '';
+replayGestureBtn.style.display = 'none';
+} else if (stageState.step === 2) {
+const dots = '●'.repeat(stageState.garlandCount) + '○'.repeat(TOTAL_GARLAND_CIRCLES - stageState.garlandCount);
+hudStepTag.textContent = ⁠2 / 4 · ${dots}⁠;
+hudPrompt.textContent = ⁠空中畫圓增加彩帶（${stageState.garlandCount} / ${TOTAL_GARLAND_CIRCLES} 圈）⁠;
+hudSub.textContent = cameraActive ? '用單手在空中順時針或逆時針畫大圓' : '每點一次增加一層彩帶與燈串';
+manualStepBtn.textContent = ⁠手動：畫第 ${stageState.garlandCount + 1} 圈彩帶⁠;
+manualStepBtn.style.display = '';
+replayGestureBtn.style.display = 'none';
+} else if (stageState.step === 3) {
+hudStepTag.textContent = '3 / 4';
+hudPrompt.textContent = '手由上往下畫，放上樹頂星星';
+hudSub.textContent = cameraActive ? '把手舉高後垂直向下拉，點亮伯利恆之星' : '點擊右下角按鈕放上樹頂星星';
+manualStepBtn.textContent = '手動：放上星星';
+manualStepBtn.style.display = '';
+replayGestureBtn.style.display = 'none';
+} else if (stageState.step === 4) {
+hudStepTag.textContent = ⁠4 / 4 · 🎁 ${stageState.giftCount} / ${TOTAL_GIFTS}⁠;
+hudPrompt.textContent = ⁠握拳再張開，放上禮物（${stageState.giftCount} / ${TOTAL_GIFTS}）⁠;
+hudSub.textContent = cameraActive
+? (sawFist ? '已偵測到握拳！現在張開手掌放禮物 🎁' : '先握拳，再完全張開手掌（一次放一個）')
+: '每點一次在樹下放上一個禮物';
+manualStepBtn.textContent = ⁠手動：放第 ${stageState.giftCount + 1} 個禮物⁠;
+manualStepBtn.style.display = '';
+replayGestureBtn.style.display = 'none';
+} else if (stageState.step === 5) {
+hudStepTag.textContent = '完成 ✨';
+hudPrompt.textContent = 'Merry Christmas 2026！';
+hudSub.textContent = '聖誕樹、彩帶、星星與 5 份禮物都已就位';
+manualStepBtn.style.display = 'none';
+replayGestureBtn.style.display = '';
+}
+}
+function triggerCurrentStep(handX = 0.5, handY = 0.5) {
+const nowMs = performance.now();
+if (stageState.step === 1) {
+stageState.treeStart = simTime;
+stageState.step = 2;
+cooldownUntil = nowMs + 1300;
+trail = [];
+spawnSparkBurst(handX, handY, 32);
+updateHud();
+} else if (stageState.step === 2) {
+const idx = stageState.garlandCount;
+if (idx < TOTAL_GARLAND_CIRCLES) {
+stageState.garlandTimes[idx] = simTime;
+stageState.garlandCount++;
+trail = [];
+spawnSparkBurst(handX, handY, 26);
+if (stageState.garlandCount >= TOTAL_GARLAND_CIRCLES) {
+stageState.step = 3;
+cooldownUntil = nowMs + 1000;
+} else {
+cooldownUntil = nowMs + 750;
+}
+updateHud();
+}
+} else if (stageState.step === 3) {
+stageState.starStart = simTime;
+stageState.step = 4;
+sawFist = false;
+cooldownUntil = nowMs + 1000;
+trail = [];
+spawnSparkBurst(0.5, 0.22, 42);
+updateHud();
+} else if (stageState.step === 4) {
+const idx = stageState.giftCount;
+if (idx < TOTAL_GIFTS) {
+stageState.giftTimes[idx] = simTime;
+stageState.giftCount++;
+sawFist = false;
+cooldownUntil = nowMs + 650;
+spawnSparkBurst(handX, handY, 24);
+if (stageState.giftCount >= TOTAL_GIFTS) {
+stageState.step = 5;
+stageState.msgStart = simTime + 0.55;
+spawnSparkBurst(0.5, 0.45, 55);
+}
+updateHud();
+}
+}
+}
+function resetGestureExperience() {
+stageState.step = 1;
+stageState.treeStart = Infinity;
+stageState.garlandCount = 0;
+stageState.garlandTimes = [Infinity, Infinity, Infinity];
+stageState.starStart = Infinity;
+stageState.giftCount = 0;
+stageState.giftTimes = [Infinity, Infinity, Infinity, Infinity, Infinity];
+stageState.msgStart = Infinity;
+sawFist = false;
+trail = [];
+cooldownUntil = performance.now() + 500;
+updateHud();
+}
+manualStepBtn.addEventListener('click', () => {
+unlockOnGesture();
+triggerCurrentStep(0.5, 0.45);
+});
+replayGestureBtn.addEventListener('click', () => {
+unlockOnGesture();
+resetGestureExperience();
+});
+// Gesture math helpers
+function detectCircle(pts) {
+if (pts.length < 12) return false;
+let minX = 1, maxX = 0, minY = 1, maxY = 0;
+let sumX = 0, sumY = 0;
+for (let i = 0; i < pts.length; i++) {
+const p = pts[i];
+if (p.x < minX) minX = p.x;
+if (p.x > maxX) maxX = p.x;
+if (p.y < minY) minY = p.y;
+if (p.y > maxY) maxY = p.y;
+sumX += p.x;
+sumY += p.y;
+}
+if ((maxX - minX) < 0.08 || (maxY - minY) < 0.08) return false;
+const cx = sumX / pts.length;
+const cy = sumY / pts.length;
+let totalAng = 0;
+let prevAng = Math.atan2(pts[0].y - cy, pts[0].x - cx);
+for (let i = 1; i < pts.length; i++) {
+const ang = Math.atan2(pts[i].y - cy, pts[i].x - cx);
+let d = ang - prevAng;
+if (d > Math.PI) d -= TAU;
+if (d < -Math.PI) d += TAU;
+totalAng += d;
+prevAng = ang;
+}
+return Math.abs(totalAng) >= 4.4; // ~252 degrees smooth loop
+}
+function processHandLandmarks(lm, nowMs) {
+// Mirrored palm center (average of wrist + 4 MCP knuckles)
+const palmIdx = [0, 5, 9, 13, 17];
+let px = 0, py = 0;
+for (let i = 0; i < palmIdx.length; i++) {
+px += (1 - lm[palmIdx[i]].x);
+py += lm[palmIdx[i]].y;
+}
+px /= palmIdx.length;
+py /= palmIdx.length;
+// Index fingertip for circle drawing
+const ix = 1 - lm[8].x;
+const iy = lm[8].y;
+const trackX = (stageState.step === 2) ? ix : px;
+const trackY = (stageState.step === 2) ? iy : py;
+currentHandPt = { x: trackX, y: trackY, t: nowMs };
+if (nowMs < cooldownUntil || stageState.step < 1 || stageState.step > 4) return;
+const windowMs = (stageState.step === 2) ? 1900 : 900;
+trail.push({ t: nowMs, x: trackX, y: trackY });
+while (trail.length && (nowMs - trail[0].t) > windowMs) {
+trail.shift();
+}
+if (stageState.step === 1) {
+// Step 1: Single hand swipe UP
+let maxY = -1, maxIdx = 0;
+for (let i = 0; i < trail.length; i++) {
+if (trail[i].y > maxY) {
+maxY = trail[i].y;
+maxIdx = i;
+}
+}
+const dyUp = maxY - trackY;
+const dx = Math.abs(trackX - trail[maxIdx].x);
+if (dyUp >= 0.28 && dx < 0.38) {
+triggerCurrentStep(trackX, trackY);
+}
+} else if (stageState.step === 2) {
+// Step 2: Draw circles (3x)
+if (detectCircle(trail)) {
+triggerCurrentStep(trackX, trackY);
+}
+} else if (stageState.step === 3) {
+// Step 3: Swipe DOWN from upper half to place star
+let minY = 2, minIdx = 0;
+for (let i = 0; i < trail.length; i++) {
+if (trail[i].y < minY) {
+minY = trail[i].y;
+minIdx = i;
+}
+}
+const dyDown = trackY - minY;
+const dx = Math.abs(trackX - trail[minIdx].x);
+if (minY < 0.55 && dyDown >= 0.26 && dx < 0.38) {
+triggerCurrentStep(trackX, trackY);
+}
+} else if (stageState.step === 4) {
+// Step 4: Fist -> Open Palm (5 gifts, one per cycle)
+const palmSize = Math.hypot(lm[0].x - lm[9].x, lm[0].y - lm[9].y) || 0.001;
+const tips = [8, 12, 16, 20];
+let avgTipDist = 0;
+for (let i = 0; i < tips.length; i++) {
+avgTipDist += Math.hypot(lm[tips[i]].x - lm[0].x, lm[tips[i]].y - lm[0].y);
+}
+const openRatio = (avgTipDist / tips.length) / palmSize;
+if (!sawFist && openRatio < 1.22) {
+sawFist = true;
+updateHud();
+} else if (sawFist && openRatio > 1.60) {
+triggerCurrentStep(trackX, trackY);
+}
+}
+}
+function renderFxOverlay() {
+requestAnimationFrame(renderFxOverlay);
+fxCtx.clearRect(0, 0, fxW, fxH);
+// Run MediaPipe detection on active video frames
+if (cameraActive && handLandmarker && camVideo.readyState >= 2) {
+if (camVideo.currentTime !== lastVideoTime) {
+lastVideoTime = camVideo.currentTime;
+const nowMs = performance.now();
+try {
+const res = handLandmarker.detectForVideo(camVideo, nowMs);
+if (res && res.landmarks && res.landmarks.length > 0) {
+camDot.classList.add('hand-ok');
+camDotText.textContent = '已偵測手部';
+processHandLandmarks(res.landmarks[0], nowMs);
+} else {
+camDot.classList.remove('hand-ok');
+camDotText.textContent = '等待手部';
+currentHandPt = null;
+}
+} catch (_) {}
+}
+}
+// Draw glowing gesture trail
+if (cameraActive && trail.length > 1 && stageState.step >= 1 && stageState.step <= 3) {
+fxCtx.save();
+fxCtx.lineCap = 'round';
+fxCtx.lineJoin = 'round';
+for (let i = 1; i < trail.length; i++) {
+const a = (i / trail.length) * 0.72;
+fxCtx.strokeStyle = ⁠rgba(255, 214, 118, ${a.toFixed(3)})⁠;
+fxCtx.lineWidth = 2 + (i / trail.length) * 4;
+fxCtx.beginPath();
+fxCtx.moveTo(trail[i - 1].x * fxW, trail[i - 1].y * fxH);
+fxCtx.lineTo(trail[i].x * fxW, trail[i].y * fxH);
+fxCtx.stroke();
+}
+fxCtx.restore();
+}
+// Draw magic golden hand cursor
+if (cameraActive && currentHandPt && (performance.now() - currentHandPt.t) < 250) {
+const hx = currentHandPt.x * fxW;
+const hy = currentHandPt.y * fxH;
+const grad = fxCtx.createRadialGradient(hx, hy, 2, hx, hy, 22);
+grad.addColorStop(0, sawFist ? 'rgba(255, 130, 120, 0.95)' : 'rgba(255, 232, 160, 0.95)');
+grad.addColorStop(0.5, sawFist ? 'rgba(255, 110, 90, 0.35)' : 'rgba(255, 196, 90, 0.35)');
+grad.addColorStop(1, 'rgba(255, 196, 90, 0)');
+fxCtx.fillStyle = grad;
+fxCtx.beginPath();
+fxCtx.arc(hx, hy, 22, 0, TAU);
+fxCtx.fill();
+}
+// Draw celebratory spark bursts
+for (let i = fxParticles.length - 1; i >= 0; i--) {
+const p = fxParticles[i];
+p.x += p.vx;
+p.y += p.vy;
+p.vy += 0.08;
+p.life -= 0.022;
+if (p.life <= 0) {
+fxParticles.splice(i, 1);
+continue;
+}
+fxCtx.fillStyle = p.gold
+? ⁠rgba(255, 214, 112, ${p.life.toFixed(3)})⁠
+: ⁠rgba(255, 250, 235, ${p.life.toFixed(3)})⁠;
+fxCtx.beginPath();
+fxCtx.arc(p.x, p.y, p.r * p.life, 0, TAU);
+fxCtx.fill();
+}
+}
+requestAnimationFrame(renderFxOverlay);
+async function initHandLandmarker() {
+let mp;
+try {
+mp = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs');
+} catch () {
+mp = await import('https://unpkg.com/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs');
+}
+const { FilesetResolver, HandLandmarker } = mp;
+const vision = await FilesetResolver.forVisionTasks(
+'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
+);
+const modelUrl = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+try {
+return await HandLandmarker.createFromOptions(vision, {
+baseOptions: { modelAssetPath: modelUrl, delegate: 'GPU' },
+runningMode: 'VIDEO',
+numHands: 1,
+minHandDetectionConfidence: 0.52,
+minHandPresenceConfidence: 0.52,
+minTrackingConfidence: 0.5
+});
+} catch () {
+return await HandLandmarker.createFromOptions(vision, {
+baseOptions: { modelAssetPath: modelUrl, delegate: 'CPU' },
+runningMode: 'VIDEO',
+numHands: 1,
+minHandDetectionConfidence: 0.52,
+minHandPresenceConfidence: 0.52,
+minTrackingConfidence: 0.5
+});
+}
+}
+enableCamBtn.addEventListener('click', async () => {
+unlockOnGesture();
+camError.textContent = '';
+enableCamBtn.disabled = true;
+enableCamBtn.textContent = '正在開啟鏡頭與載入手勢模型...';
+try {
+if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+throw new Error('NO_MEDIA_DEVICES');
+}
+const stream = await navigator.mediaDevices.getUserMedia({
+video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+audio: false
+});
+camVideo.srcObject = stream;
+await camVideo.play();
+handLandmarker = await initHandLandmarker();
+cameraActive = true;
+camPreviewWrap.classList.add('active');
+camModal.classList.add('hidden');
+stageState.step = 1;
+cooldownUntil = performance.now() + 600;
+updateHud();
+} catch (err) {
+enableCamBtn.disabled = false;
+enableCamBtn.textContent = '重新嘗試開啟鏡頭';
+const name = err && err.name ? err.name : '';
+if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+camError.textContent = '鏡頭權限被拒絕了，請在瀏覽器允許相機權限，或點下方改用點擊體驗。';
+} else {
+camError.textContent = '無法啟用鏡頭或載入手勢模型，你可以改用下方「點擊觸發」體驗。';
+}
+}
+});
+skipCamBtn.addEventListener('click', () => {
+unlockOnGesture();
+cameraActive = false;
+camModal.classList.add('hidden');
+stageState.step = 1;
+updateHud();
+});
 })();
 </script>
 </body>
